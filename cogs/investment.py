@@ -1,331 +1,272 @@
 """
-Investment Commands Cog
-
-This module contains investment-related slash commands for the Bjorn bot.
-It handles creating investments, checking portfolios, and managing returns.
+Investment System - Invest money with risk/reward
 """
-
 import random
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+from datetime import datetime, timedelta
 
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
-from utils.decorators import requires_economy, log_command_usage, typing, require_database
-from utils.helpers import format_currency, get_random_success_message, validate_amount
 from utils.logger import get_logger
 
 
 class InvestmentCog(commands.Cog, name="Investment"):
-    """
-    Investment commands cog with slash commands.
-    
-    This cog provides investment functionality including creating investments,
-    checking portfolios, and automated maturity processing.
-    """
-    
+    """Investment and passive income system"""
+
     def __init__(self, bot):
-        """Initialize the investment cog."""
         self.bot = bot
         self.logger = get_logger(__name__)
+        self.active_investments = {}  # user_id: {amount, end_time, multiplier}
         
-        # Investment types with different risk/reward profiles
-        self.investment_types = {
-            "conservative": {
-                "name": "Conservative Bonds",
-                "min_days": 1,
-                "max_days": 3,
-                "min_return": 1.05,
-                "max_return": 1.15,
-                "risk": 0.1,
-                "emoji": "🛡️"
-            },
-            "balanced": {
-                "name": "Balanced Portfolio",
-                "min_days": 2,
-                "max_days": 5,
-                "min_return": 0.8,
-                "max_return": 1.8,
-                "risk": 0.25,
-                "emoji": "⚖️"
-            },
-            "aggressive": {
-                "name": "High-Risk Stocks",
-                "min_days": 3,
-                "max_days": 7,
-                "min_return": 0.5,
-                "max_return": 3.0,
-                "risk": 0.4,
-                "emoji": "🚀"
-            }
-        }
-    
-    @app_commands.command(name="invest", description="Invest your coins for potential returns")
+        if self.bot.config.daily_interest_enabled:
+            self.daily_interest.start()
+
+    def cog_unload(self):
+        if self.bot.config.daily_interest_enabled:
+            self.daily_interest.cancel()
+
+    @app_commands.command(name="invest", description="Invest money for potential returns")
     @app_commands.describe(
         amount="Amount to invest",
-        investment_type="Type of investment (conservative/balanced/aggressive)"
+        duration="Investment duration in hours (1-24)"
     )
-    @app_commands.choices(investment_type=[
-        app_commands.Choice(name="Conservative Bonds 🛡️ (Low risk, steady returns)", value="conservative"),
-        app_commands.Choice(name="Balanced Portfolio ⚖️ (Medium risk, moderate returns)", value="balanced"),
-        app_commands.Choice(name="High-Risk Stocks 🚀 (High risk, high potential)", value="aggressive"),
-    ])
-    async def invest(self, interaction: discord.Interaction, amount: int, investment_type: str):
-        """Create a new investment."""
-        if not self.bot.config.economy_enabled or not self.bot.config.investment_enabled:
-            embed = discord.Embed(
-                title="❌ Feature Disabled",
-                description="Investment system is currently disabled.",
-                color=0xFF0000
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        
-        # Validate amount
+    async def invest(self, interaction: discord.Interaction, amount: int, duration: int = 6):
+        """Invest money with risk/reward"""
         if amount < self.bot.config.investment_min_amount:
-            embed = discord.Embed(
-                title="❌ Investment Too Small",
-                description=f"Minimum investment amount is {format_currency(self.bot.config.investment_min_amount)}.",
-                color=0xFF0000
+            await interaction.response.send_message(
+                f"❌ Minimum investment: ${self.bot.config.investment_min_amount:,}",
+                ephemeral=True
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
+
         if amount > self.bot.config.investment_max_amount:
-            embed = discord.Embed(
-                title="❌ Investment Too Large",
-                description=f"Maximum investment amount is {format_currency(self.bot.config.investment_max_amount)}.",
-                color=0xFF0000
+            await interaction.response.send_message(
+                f"❌ Maximum investment: ${self.bot.config.investment_max_amount:,}",
+                ephemeral=True
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
-        # Get user and check balance
-        user = await self.bot.db.get_user(interaction.user.id, interaction.user.name, interaction.user.discriminator)
-        
+
+        if not (1 <= duration <= 24):
+            await interaction.response.send_message(
+                "❌ Duration must be between 1-24 hours",
+                ephemeral=True
+            )
+            return
+
+        user = await self.bot.db.get_user(interaction.user.id)
         if user.balance < amount:
-            embed = discord.Embed(
-                title="💰 Insufficient Funds",
-                description=f"You need {format_currency(amount)} but only have {format_currency(user.balance)}.",
-                color=0xFF0000
+            await interaction.response.send_message(
+                f"❌ Insufficient funds! You have ${user.balance:,}",
+                ephemeral=True
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
-        # Get investment type details
-        inv_type = self.investment_types[investment_type]
-        
-        # Calculate maturity date
-        days_to_mature = random.randint(inv_type["min_days"], inv_type["max_days"])
-        maturity_date = datetime.now(timezone.utc) + timedelta(days=days_to_mature)
-        
-        # Calculate expected return
-        expected_return = random.uniform(inv_type["min_return"], inv_type["max_return"])
-        
-        # Deduct amount from balance
-        success = await self.bot.db.update_user_balance(interaction.user.id, -amount)
-        if not success:
-            embed = discord.Embed(
-                title="❌ Transaction Failed",
-                description="Could not process investment. Please try again.",
-                color=0xFF0000
+
+        # Check if user already has active investment
+        if interaction.user.id in self.active_investments:
+            await interaction.response.send_message(
+                "❌ You already have an active investment! Wait for it to mature.",
+                ephemeral=True
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
-        # Create investment record
-        investment_id = await self.bot.db.create_investment(
-            user_id=interaction.user.id,
-            amount=amount,
-            investment_type=investment_type,
-            expected_return=expected_return,
-            maturity_date=maturity_date
+
+        # Deduct investment amount
+        await self.bot.db.update_user_balance(interaction.user.id, -amount)
+
+        # Calculate potential return (higher duration = better multiplier)
+        base_multiplier = random.uniform(
+            self.bot.config.investment_min_return,
+            self.bot.config.investment_max_return
         )
-        
-        # Log transaction
+        duration_bonus = 1 + (duration * 0.02)  # 2% bonus per hour
+        multiplier = base_multiplier * duration_bonus
+
+        # Store investment
+        end_time = datetime.now() + timedelta(hours=duration)
+        self.active_investments[interaction.user.id] = {
+            'amount': amount,
+            'end_time': end_time,
+            'multiplier': multiplier
+        }
+
         await self.bot.db.log_transaction(
-            user_id=interaction.user.id,
-            guild_id=interaction.guild.id if interaction.guild else None,
-            transaction_type='investment',
-            amount=-amount,
-            description=f'Investment: {inv_type["name"]}'
+            interaction.user.id,
+            interaction.guild.id if interaction.guild else 0,
+            'investment_start',
+            -amount,
+            f'{duration}h investment'
         )
-        
-        # Create response embed
-        expected_payout = int(amount * expected_return)
-        profit = expected_payout - amount
-        
+
         embed = discord.Embed(
-            title=f"{inv_type['emoji']} Investment Created!",
-            description=f"You invested {format_currency(amount)} in **{inv_type['name']}**",
-            color=0x00FF00
+            title="📈 Investment Started",
+            description=f"Invested **${amount:,}** for **{duration} hours**",
+            color=discord.Color.blue()
         )
-        
         embed.add_field(
-            name="💰 Expected Return",
-            value=f"{format_currency(expected_payout)} ({expected_return:.2f}x)",
+            name="Expected Return",
+            value=f"{multiplier:.2f}x (${int(amount * multiplier):,})",
             inline=True
         )
-        
         embed.add_field(
-            name="📈 Potential Profit",
-            value=format_currency(profit),
+            name="Matures",
+            value=f"<t:{int(end_time.timestamp())}:R>",
             inline=True
         )
-        
-        embed.add_field(
-            name="⏰ Matures In",
-            value=f"{days_to_mature} day(s)",
-            inline=True
-        )
-        
-        embed.add_field(
-            name="🎯 Risk Level",
-            value=f"{inv_type['risk']*100:.0f}% chance of loss",
-            inline=True
-        )
-        
-        embed.add_field(
-            name="🆔 Investment ID",
-            value=f"`{investment_id}`",
-            inline=True
-        )
-        
-        embed.set_footer(text="Use /portfolio to check your investments")
-        
+        embed.set_footer(text="Use /collect to claim when ready!")
+
         await interaction.response.send_message(embed=embed)
-    
-    @app_commands.command(name="portfolio", description="View your investment portfolio")
-    async def portfolio(self, interaction: discord.Interaction):
-        """View user's investment portfolio."""
-        if not self.bot.config.economy_enabled or not self.bot.config.investment_enabled:
-            embed = discord.Embed(
-                title="❌ Feature Disabled",
-                description="Investment system is currently disabled.",
-                color=0xFF0000
+
+    @app_commands.command(name="collect", description="Collect your investment returns")
+    async def collect(self, interaction: discord.Interaction):
+        """Collect matured investment"""
+        if interaction.user.id not in self.active_investments:
+            await interaction.response.send_message(
+                "❌ You don't have any active investments!",
+                ephemeral=True
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
-        # Get user's investments
-        investments = await self.bot.db.get_user_investments(interaction.user.id)
-        
-        if not investments:
-            embed = discord.Embed(
-                title="📊 Investment Portfolio",
-                description="You don't have any investments yet. Use `/invest` to get started!",
-                color=self.bot.config.get_embed_color()
+
+        investment = self.active_investments[interaction.user.id]
+        now = datetime.now()
+
+        if now < investment['end_time']:
+            remaining = investment['end_time'] - now
+            hours = int(remaining.total_seconds() // 3600)
+            minutes = int((remaining.total_seconds() % 3600) // 60)
+            
+            await interaction.response.send_message(
+                f"⏰ Investment not ready! Wait {hours}h {minutes}m",
+                ephemeral=True
             )
-            await interaction.response.send_message(embed=embed)
             return
-        
-        # Separate active and completed investments
-        active_investments = [inv for inv in investments if inv.status == 'active']
-        completed_investments = [inv for inv in investments if inv.status == 'completed']
-        
-        embed = discord.Embed(
-            title="📊 Investment Portfolio",
-            color=self.bot.config.get_embed_color()
-        )
-        
-        if active_investments:
-            active_value = sum(inv.amount for inv in active_investments)
-            active_text = f"**Total Invested:** {format_currency(active_value)}\n"
-            active_text += f"**Active Investments:** {len(active_investments)}\n\n"
-            
-            for inv in active_investments[:5]:  # Show up to 5 recent
-                inv_type = self.investment_types.get(inv.investment_type, {})
-                emoji = inv_type.get('emoji', '💼')
-                name = inv_type.get('name', inv.investment_type.title())
-                
-                time_left = inv.maturity_date - datetime.now(timezone.utc)
-                if time_left.total_seconds() > 0:
-                    days_left = time_left.days
-                    hours_left = time_left.seconds // 3600
-                    time_str = f"{days_left}d {hours_left}h" if days_left > 0 else f"{hours_left}h"
-                else:
-                    time_str = "**READY TO COLLECT**"
-                
-                expected_return = int(inv.amount * inv.expected_return)
-                
-                active_text += f"{emoji} **{name}**\n"
-                active_text += f"Amount: {format_currency(inv.amount)} → {format_currency(expected_return)}\n"
-                active_text += f"Time left: {time_str}\n\n"
-            
-            if len(active_investments) > 5:
-                active_text += f"*...and {len(active_investments) - 5} more*"
-            
-            embed.add_field(
-                name="🟢 Active Investments",
-                value=active_text,
-                inline=False
+
+        # Determine if investment succeeded or failed
+        failed = random.random() < self.bot.config.investment_fail_rate
+
+        if failed:
+            # Lost investment
+            lost_amount = investment['amount']
+            del self.active_investments[interaction.user.id]
+
+            embed = discord.Embed(
+                title="📉 Investment Failed!",
+                description=f"The market crashed! You lost your investment of **${lost_amount:,}**",
+                color=discord.Color.red()
             )
-        
-        if completed_investments:
-            total_invested = sum(inv.amount for inv in completed_investments)
-            total_returned = sum(int(inv.amount * inv.actual_return) for inv in completed_investments if inv.actual_return)
-            profit = total_returned - total_invested
-            
-            completed_text = f"**Total Invested:** {format_currency(total_invested)}\n"
-            completed_text += f"**Total Returned:** {format_currency(total_returned)}\n"
-            completed_text += f"**Net Profit:** {format_currency(profit)}\n"
-            completed_text += f"**Completed Investments:** {len(completed_investments)}"
-            
-            embed.add_field(
-                name="✅ Investment History",
-                value=completed_text,
-                inline=False
+
+            await self.bot.db.log_transaction(
+                interaction.user.id,
+                interaction.guild.id if interaction.guild else 0,
+                'investment_fail',
+                0,
+                'Investment failed'
             )
-        
-        embed.set_footer(text="Mature investments are automatically collected")
-        
+        else:
+            # Successful investment
+            returns = int(investment['amount'] * investment['multiplier'])
+            profit = returns - investment['amount']
+            
+            await self.bot.db.update_user_balance(interaction.user.id, returns)
+            del self.active_investments[interaction.user.id]
+
+            embed = discord.Embed(
+                title="📈 Investment Matured!",
+                description=f"Your investment paid off!",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="Invested", value=f"${investment['amount']:,}", inline=True)
+            embed.add_field(name="Returns", value=f"${returns:,}", inline=True)
+            embed.add_field(name="Profit", value=f"${profit:,}", inline=True)
+
+            await self.bot.db.log_transaction(
+                interaction.user.id,
+                interaction.guild.id if interaction.guild else 0,
+                'investment_success',
+                profit,
+                f'Investment return: {investment["multiplier"]:.2f}x'
+            )
+
         await interaction.response.send_message(embed=embed)
-    
-    @app_commands.command(name="investment-info", description="Get information about investment types")
-    async def investment_info(self, interaction: discord.Interaction):
-        """Display information about available investment types."""
-        embed = discord.Embed(
-            title="💼 Investment Guide",
-            description="Choose your investment strategy based on your risk tolerance:",
-            color=self.bot.config.get_embed_color()
-        )
-        
-        for inv_type, details in self.investment_types.items():
-            risk_desc = "Low" if details["risk"] < 0.2 else "Medium" if details["risk"] < 0.35 else "High"
-            
-            field_text = f"**Duration:** {details['min_days']}-{details['max_days']} days\n"
-            field_text += f"**Returns:** {details['min_return']:.1f}x - {details['max_return']:.1f}x\n"
-            field_text += f"**Risk Level:** {risk_desc} ({details['risk']*100:.0f}% loss chance)\n"
-            field_text += f"**Best For:** "
-            
-            if inv_type == "conservative":
-                field_text += "Steady, guaranteed profits"
-            elif inv_type == "balanced":
-                field_text += "Moderate risk with good returns"
-            else:
-                field_text += "High risk, high reward players"
-            
-            embed.add_field(
-                name=f"{details['emoji']} {details['name']}",
-                value=field_text,
-                inline=True
+
+    @app_commands.command(name="investment", description="Check your active investment")
+    async def investment_status(self, interaction: discord.Interaction):
+        """Check investment status"""
+        if interaction.user.id not in self.active_investments:
+            await interaction.response.send_message(
+                "You don't have any active investments.",
+                ephemeral=True
             )
+            return
+
+        investment = self.active_investments[interaction.user.id]
+        now = datetime.now()
         
+        if now >= investment['end_time']:
+            status = "✅ Ready to collect!"
+        else:
+            remaining = investment['end_time'] - now
+            hours = int(remaining.total_seconds() // 3600)
+            minutes = int((remaining.total_seconds() % 3600) // 60)
+            status = f"⏰ {hours}h {minutes}m remaining"
+
+        embed = discord.Embed(
+            title="📊 Your Investment",
+            color=discord.Color.blue()
+        )
+        embed.add_field(name="Amount", value=f"${investment['amount']:,}", inline=True)
         embed.add_field(
-            name="💡 Tips",
-            value=f"• Minimum investment: {format_currency(self.bot.config.investment_min_amount)}\n"
-                  f"• Maximum investment: {format_currency(self.bot.config.investment_max_amount)}\n"
-                  f"• Investments mature automatically\n"
-                  f"• Higher risk = higher potential rewards\n"
-                  f"• Diversify your portfolio for best results",
+            name="Expected Returns",
+            value=f"${int(investment['amount'] * investment['multiplier']):,}",
+            inline=True
+        )
+        embed.add_field(name="Status", value=status, inline=False)
+        embed.add_field(
+            name="Matures",
+            value=f"<t:{int(investment['end_time'].timestamp())}:R>",
             inline=False
         )
-        
+
         await interaction.response.send_message(embed=embed)
+
+    @tasks.loop(hours=24)
+    async def daily_interest(self):
+        """Apply daily interest to bank balances"""
+        self.logger.info("Applying daily bank interest...")
+        
+        try:
+            # Get users with bank balance using raw SQL query
+            from sqlalchemy import select, update
+            from config.database import User
+            
+            async with self.bot.db.session_factory() as session:
+                # Get all users with positive bank balance
+                result = await session.execute(
+                    select(User).where(User.bank_balance > 0)
+                )
+                users = result.scalars().all()
+                
+                count = 0
+                for user in users:
+                    interest = int(user.bank_balance * self.bot.config.bank_interest_rate)
+                    if interest > 0:
+                        # Update bank balance directly
+                        await session.execute(
+                            update(User)
+                            .where(User.id == user.id)
+                            .values(bank_balance=User.bank_balance + interest)
+                        )
+                        count += 1
+                
+                await session.commit()
+                self.logger.info(f"Applied interest to {count} users")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to apply interest: {e}")
+
+    @daily_interest.before_loop
+    async def before_daily_interest(self):
+        await self.bot.wait_until_ready()
 
 
 async def setup(bot):
-    """Load the Investment cog."""
     await bot.add_cog(InvestmentCog(bot))

@@ -1,227 +1,497 @@
-# Saint Toadle Bot - Complete File List & Setup Guide
+# Bjorn Discord Bot - Complete Setup Guide
 
-## 📁 Project Structure
-
-```
-saint_toadle_bot/
-├── main.py                     # Main bot entry point
-├── requirements.txt            # Python dependencies
-├── setup.py                   # Automated setup script
-├── README.md                  # Comprehensive documentation
-├── ROADMAP.md                # Development roadmap
-├── .env                      # Environment variables (your bot token here)
-├── .env.example              # Environment template
-├── .gitignore                # Git ignore file
-│
-├── config/
-│   ├── __init__.py           # Config module init
-│   ├── settings.py           # Bot configuration
-│   └── database.py           # Database models
-│
-├── utils/
-│   ├── __init__.py           # Utils module init
-│   ├── logger.py             # Logging system
-│   ├── database_manager.py   # Database operations
-│   ├── error_handler.py      # Error handling
-│   ├── decorators.py         # Custom decorators
-│   └── helpers.py            # Utility functions
-│
-├── cogs/
-│   ├── __init__.py           # Cogs module init
-│   ├── economy.py            # Economy commands
-│   ├── moderation.py         # Moderation commands
-│   ├── utility.py            # Utility commands
-│   ├── bank.py              # Banking commands
-│   ├── profile.py           # Profile commands
-│   ├── referral.py          # Referral system (stub)
-│   └── marketplace.py       # Marketplace (stub)
-│
-├── data/                    # Database files (auto-created)
-│   └── saint_toadle.db     # SQLite database
-│
-└── logs/                    # Log files (auto-created)
-    ├── saint_toadle.log    # General bot logs
-    └── errors.log          # Error logs
-```
-
-## 🚀 Quick Setup Instructions
-
-### 1. Prerequisites
-- Python 3.8 or higher
-- pip (Python package installer)
-- A Discord bot token
-
-### 2. Installation Steps
-
-1. **Download/Extract Files**: Place all the provided files in your project directory following the structure above.
-
-2. **Run Setup Script**:
-   ```bash
-   python setup.py
-   ```
-   This will:
-   - Check Python version
-   - Install dependencies
-   - Create necessary directories
-   - Set up .env file
-
-3. **Configure Bot Token**:
-   Edit the `.env` file and replace the placeholder with your actual Discord bot token:
-   ```env
-   DISCORD_TOKEN=YOUR_ACTUAL_BOT_TOKEN_HERE
-   ```
-
-4. **Run the Bot**:
-   ```bash
-   python main.py
-   ```
-
-### 3. Discord Bot Setup
-
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-2. Create a new application
-3. Go to "Bot" section
-4. Create a bot and copy the token to your `.env` file
-5. Enable necessary intents:
-   - Message Content Intent
-   - Server Members Intent
-   - Guilds Intent
-6. Generate invite link with these permissions:
-   - Send Messages
-   - Read Message History
-   - Embed Links
-   - Attach Files
-   - Manage Messages
-   - Kick Members
-   - Ban Members
-
-## 📋 File Descriptions
-
-### Core Files
-
-- **main.py**: The heart of the bot. Contains the main SaintToadleBot class, initialization, and event handlers.
-- **requirements.txt**: Lists all Python packages needed for the bot to run.
-- **setup.py**: Automated setup script to install dependencies and configure the environment.
-
-### Configuration Files
-
-- **.env**: Contains your sensitive information like bot token (NEVER share this file)
-- **.env.example**: Template for environment variables (safe to share)
-- **config/settings.py**: Bot configuration class that loads settings from environment variables
-- **config/database.py**: SQLAlchemy database models for all bot data
-
-### Utility Modules
-
-- **utils/logger.py**: Comprehensive logging system with colored console output and file logging
-- **utils/database_manager.py**: Database operations manager with methods for all CRUD operations
-- **utils/error_handler.py**: Centralized error handling for commands and events
-- **utils/decorators.py**: Custom decorators for permissions, cooldowns, and validation
-- **utils/helpers.py**: Utility functions for formatting, validation, and common operations
-
-### Command Modules (Cogs)
-
-- **cogs/economy.py**: Complete economy system with earning, daily bonuses, crime, and transfers
-- **cogs/moderation.py**: Full moderation suite with warnings, bans, kicks, and message management
-- **cogs/utility.py**: Utility commands including help, ping, server info, and bot statistics
-- **cogs/bank.py**: Banking system with deposits, withdrawals, and interest
-- **cogs/profile.py**: User profiles with customization and statistics
-- **cogs/referral.py**: Referral system (basic structure, ready for expansion)
-- **cogs/marketplace.py**: Marketplace system (basic structure, ready for expansion)
-
-## 🔧 Key Features Implemented
-
-### ✅ Fully Functional Features
-
-1. **Economy System**
-   - `!earn` - Earn coins through work (5-minute cooldown)
-   - `!daily` - Daily bonus (24-hour cooldown)  
-   - `!crime` - Risk/reward crime system (10-minute cooldown)
-   - `!balance` - Check wallet and bank balance
-   - `!give` - Transfer coins to other users
-   - `!leaderboard` - View wealth rankings
-
-2. **Banking System**
-   - `!deposit` - Move coins to bank for safety
-   - `!withdraw` - Take coins from bank
-
-3. **Moderation Tools**
-   - `!warn` - Issue warnings to users
-   - `!warnings` - View user warning history
-   - `!kick` - Kick users from server
-   - `!ban` - Ban users from server
-   - `!clear` - Bulk delete messages
-   - Auto-ban system when users reach warning threshold
-
-4. **Utility Commands**
-   - `!help` - Comprehensive help system
-   - `!ping` - Bot latency and response time
-   - `!serverinfo` - Detailed server information
-   - `!userinfo` - User/member information
-   - `!botinfo` - Bot statistics and system info
-
-5. **User Profiles**
-   - `!profile` - View user profiles with stats
-   - Experience and leveling system
-   - Customizable profile colors and bios
-
-### 🔄 Basic Implementation (Ready for Expansion)
-
-1. **Referral System** - Framework in place
-2. **Marketplace** - Database models and basic structure ready
-
-## 🛡️ Security & Best Practices
-
-- Environment variable configuration
-- Proper permission checking
-- SQL injection prevention through SQLAlchemy ORM
-- Comprehensive error handling
-- Rate limiting and cooldown systems
-- Audit logging for all operations
-
-## 🐛 Debugging Features
-
-- Comprehensive logging system with multiple levels
-- Error tracking and reporting
-- Command execution logging
-- Database operation logging
-- Performance monitoring
-
-## 📊 Database
-
-The bot uses SQLite with SQLAlchemy ORM for data persistence:
-
-- **Users**: Stores user data, balances, statistics
-- **Guilds**: Server-specific configuration
-- **Warnings**: Moderation warning system
-- **Items**: Marketplace item definitions
-- **Inventory**: User item ownership
-- **Referrals**: Referral tracking
-- **Transactions**: Complete transaction history
-- **CommandLogs**: Command usage analytics
-
-## 🔮 Next Steps
-
-1. **Immediate**: Get the bot online and test basic functionality
-2. **Short-term**: Implement complete referral and marketplace systems
-3. **Medium-term**: Add gambling games, investment system, guild features
-4. **Long-term**: Web dashboard, API, premium features
-
-## 💡 Tips for Success
-
-1. Start with basic commands to ensure everything works
-2. Monitor the logs directory for any issues
-3. Use `DEBUG_MODE=true` in .env for detailed logging during development
-4. Gradually enable features as you test them
-5. Keep your bot token secure and never commit the .env file
-
-## 🆘 Support
-
-If you encounter issues:
-1. Check the `logs/errors.log` file for detailed error information
-2. Ensure all dependencies are installed correctly
-3. Verify your bot token is correct and the bot has necessary permissions
-4. Check that your Python version is 3.8 or higher
+## 📋 Table of Contents
+1. [Quick Start](#quick-start)
+2. [File Structure](#file-structure)
+3. [Installation](#installation)
+4. [Configuration](#configuration)
+5. [Running the Bot](#running-the-bot)
+6. [Command Reference](#command-reference)
+7. [Troubleshooting](#troubleshooting)
 
 ---
 
-**You now have a complete, production-ready Discord bot with robust economy, moderation, and utility features!** 🎉
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.8 or higher
+- Discord bot token from [Discord Developer Portal](https://discord.com/developers/applications)
+- Basic terminal/command line knowledge
+
+### 5-Minute Setup
+
+```bash
+# 1. Navigate to your bot directory
+cd bjorn
+
+# 2. Run the automated setup
+python setup.py
+
+# 3. Your .env is already configured with your token!
+
+# 4. Start the bot
+python main.py
+```
+
+That's it! Your bot should now be online.
+
+---
+
+## 📁 Complete File Structure
+
+```
+bjorn/
+├── main.py                          # ✅ Bot entry point
+├── requirements.txt                  # ✅ Dependencies list
+├── setup.py                         # ✅ Setup automation
+├── .env                             # ✅ Your configured environment
+├── .env.example                     # ✅ Template for sharing
+├── .gitignore                       # ✅ Git ignore rules
+├── README.md                        # ✅ Main documentation
+├── ROADMAP.md                       # ✅ Development roadmap
+├── COMPLETE_SETUP_GUIDE.md          # ✅ This file
+│
+├── cogs/                            # Command modules
+│   ├── __init__.py                 # Module initializer
+│   ├── economy.py                  # ✅ Work, daily, crime, give
+│   ├── bank.py                     # ✅ Deposit, withdraw
+│   ├── casino.py                   # ✅ Slots, blackjack, coinflip, dice
+│   ├── investment.py               # ✅ Investment system
+│   ├── store.py                    # ✅ Shop, inventory
+│   ├── profile.py                  # ✅ User profiles
+│   ├── referral.py                 # ✅ Referral system
+│   ├── reminders.py                # ✅ Reminders, birthdays
+│   ├── moderation.py               # ✅ Warnings, kicks, bans
+│   └── utility.py                  # ✅ Help, info commands
+│
+├── config/
+│   ├── __init__.py
+│   ├── settings.py                 # ✅ Bot configuration
+│   └── database.py                 # ✅ Database models
+│
+├── utils/
+│   ├── __init__.py
+│   ├── database_manager.py         # ✅ Database operations
+│   ├── error_handler.py            # ✅ Error handling
+│   ├── logger.py                   # ✅ Logging system
+│   ├── decorators.py               # ✅ Custom decorators
+│   └── helpers.py                  # ✅ Helper functions
+│
+├── data/                            # Auto-created
+│   └── bjorn.db                    # SQLite database
+│
+└── logs/                            # Auto-created
+    ├── bjorn.log                   # General logs
+    └── errors.log                  # Error logs
+```
+
+**Status:** ✅ All files created and ready to use!
+
+---
+
+## 💻 Installation
+
+### Step 1: Install Python Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+**Required packages:**
+- discord.py >= 2.3.0
+- sqlalchemy >= 2.0.0
+- aiosqlite >= 0.19.0
+- python-dotenv >= 1.0.0
+- colorlog >= 6.7.0
+- psutil >= 5.9.0
+
+### Step 2: Verify Installation
+
+```bash
+python -c "import discord; print(f'discord.py {discord.__version__}')"
+```
+
+Expected output: `discord.py 2.3.x` or higher
+
+---
+
+## ⚙️ Configuration
+
+### Your .env File (Already Configured!)
+
+Your environment file is already set up with:
+- ✅ Your Discord bot token
+- ✅ Debug mode enabled for testing
+- ✅ All economy settings configured
+- ✅ All feature toggles enabled
+
+### Key Configuration Options
+
+```env
+# Toggle debug mode
+DEBUG_MODE=true          # Detailed logs for development
+DEBUG_MODE=false         # Production mode
+
+# Adjust economy rates
+EARN_MIN=1              # Minimum work earnings
+EARN_MAX=50             # Maximum work earnings
+DAILY_BONUS_MIN=50      # Min daily bonus
+DAILY_BONUS_MAX=100     # Max daily bonus
+
+# Crime system
+CRIME_SUCCESS_RATE=0.75 # 75% success rate (0.0 to 1.0)
+
+# Investment system
+INVESTMENT_RISK_CHANCE=0.3  # 30% chance of loss
+```
+
+---
+
+## 🎮 Running the Bot
+
+### Start the Bot
+
+```bash
+python main.py
+```
+
+### Expected Output
+
+```
+INFO | Initializing database...
+INFO | ✓ Database ready
+INFO | Loading cogs...
+INFO | ✓ cogs.economy
+INFO | ✓ cogs.bank
+INFO | ✓ cogs.casino
+INFO | ✓ cogs.investment
+INFO | ✓ cogs.store
+INFO | ✓ cogs.profile
+INFO | ✓ cogs.referral
+INFO | ✓ cogs.reminders
+INFO | ✓ cogs.moderation
+INFO | ✓ cogs.utility
+INFO | Syncing slash commands...
+INFO | ✓ Commands synced
+INFO | ==================================================
+INFO | 🤖 Bjorn#1234 is online!
+INFO | ID: 1421162825585528855
+INFO | Guilds: 1
+INFO | Users: 10
+INFO | Discord.py: 2.3.x
+INFO | ==================================================
+```
+
+### Stop the Bot
+
+Press `Ctrl+C` in the terminal
+
+---
+
+## 📚 Command Reference
+
+### 💰 Economy Commands
+
+| Command | Description | Cooldown |
+|---------|-------------|----------|
+| `/balance [@user]` | Check balance | None |
+| `/work` | Earn $1-50 | 5 minutes |
+| `/daily` | Daily bonus $50-100 | 24 hours |
+| `/crime` | Risky money $25-150 | 10 minutes |
+| `/give @user [amount]` | Transfer money | None |
+| `/leaderboard [page]` | Wealth rankings | None |
+
+### 🏦 Banking Commands
+
+| Command | Description |
+|---------|-------------|
+| `/deposit [amount\|all]` | Deposit to bank |
+| `/withdraw [amount\|all]` | Withdraw from bank |
+| `/bankinfo` | Bank information |
+
+### 🎰 Casino Commands
+
+| Command | Description |
+|---------|-------------|
+| `/coinflip [bet] [choice]` | 50/50 double or nothing |
+| `/slots [bet]` | Slot machine (up to 10x) |
+| `/blackjack [bet]` | Play blackjack |
+| `/dice [bet] [prediction]` | Dice betting game |
+
+### 📈 Investment Commands
+
+| Command | Description |
+|---------|-------------|
+| `/invest [amount] [hours]` | Invest for returns |
+| `/collect` | Collect investment |
+| `/investment` | Check status |
+
+### 🏪 Store Commands
+
+| Command | Description |
+|---------|-------------|
+| `/shop [category]` | Browse items |
+| `/buy [item] [quantity]` | Purchase items |
+| `/inventory` | View your items |
+| `/sell [item] [quantity]` | Sell items (50% value) |
+| `/use [item]` | Use an item |
+
+### 👤 Profile Commands
+
+| Command | Description |
+|---------|-------------|
+| `/profile [@user]` | View profile |
+| `/setbio [text]` | Set biography |
+| `/setcolor [hex]` | Set profile color |
+| `/rank` | View your rank |
+| `/badges` | View available badges |
+
+### ⏰ Reminder Commands
+
+| Command | Description |
+|---------|-------------|
+| `/remind [time] [message]` | Set reminder |
+| `/reminders` | View active reminders |
+| `/birthday [month] [day]` | Set birthday |
+| `/nextbirthday` | Check next birthday |
+
+### 🎉 Referral Commands
+
+| Command | Description |
+|---------|-------------|
+| `/refer @user` | Refer user (+$50) |
+| `/referrals` | Your referral stats |
+| `/referralboard` | Top referrers |
+
+### 🛡️ Moderation Commands (Requires Permissions)
+
+| Command | Description | Permission |
+|---------|-------------|------------|
+| `/warn @user [reason]` | Warn user | Kick Members |
+| `/warnings @user` | View warnings | Kick Members |
+| `/clearwarn [id]` | Remove warning | Administrator |
+| `/kick @user [reason]` | Kick user | Kick Members |
+| `/ban @user [reason]` | Ban user | Ban Members |
+| `/clear [amount]` | Delete messages | Manage Messages |
+
+### 🔧 Utility Commands
+
+| Command | Description |
+|---------|-------------|
+| `/help` | Command list |
+| `/ping` | Bot latency |
+| `/serverinfo` | Server details |
+| `/userinfo [@user]` | User details |
+| `/botinfo` | Bot statistics |
+| `/invite` | Invite link |
+| `/stats` | Your statistics |
+
+---
+
+## 🐛 Troubleshooting
+
+### Bot Won't Start
+
+**Problem:** `DISCORD_TOKEN not found`
+```bash
+# Solution: Check your .env file exists and has the token
+cat .env | grep DISCORD_TOKEN
+```
+
+**Problem:** `Module not found`
+```bash
+# Solution: Reinstall dependencies
+pip install -r requirements.txt --force-reinstall
+```
+
+### Bot is Online But Commands Don't Work
+
+**Problem:** Slash commands not showing
+- Wait 5-10 minutes for Discord to sync commands
+- Check bot has `applications.commands` scope
+- Try kicking and re-inviting the bot
+
+**Problem:** "Missing permissions" errors
+- Bot needs proper role permissions
+- Check role hierarchy (bot role should be high)
+- Verify channel permissions
+
+### Database Issues
+
+**Problem:** `OperationalError: database is locked`
+```bash
+# Solution: Close any database connections
+pkill -f python  # Linux/Mac
+# Or restart your terminal
+```
+
+**Problem:** Want to reset database
+```bash
+# Backup first!
+cp data/bjorn.db data/bjorn.db.backup
+
+# Delete and restart
+rm data/bjorn.db
+python main.py  # Will create fresh database
+```
+
+### Common Errors
+
+**"This interaction failed"**
+- Command took too long (>3 seconds)
+- Bot lost connection
+- Check logs for errors
+
+**"Unknown interaction"**
+- Discord didn't receive response in time
+- Commands might be desynced
+- Re-sync with bot restart
+
+---
+
+## 🔧 Advanced Configuration
+
+### Enable/Disable Features
+
+Edit `.env` file:
+```env
+# Disable gambling
+GAMBLING_ENABLED=false
+
+# Disable moderation
+MODERATION_ENABLED=false
+
+# Disable economy
+ECONOMY_ENABLED=false
+```
+
+### Adjust Economy Balance
+
+```env
+# Make earning harder
+EARN_MIN=1
+EARN_MAX=25
+CRIME_SUCCESS_RATE=0.50  # 50% success
+
+# Make earning easier
+EARN_MIN=10
+EARN_MAX=100
+CRIME_SUCCESS_RATE=0.90  # 90% success
+```
+
+### Change Interest Rates
+
+```env
+# Daily bank interest
+BANK_INTEREST_RATE=0.02  # 2% per day
+BANK_INTEREST_RATE=0.05  # 5% per day (generous)
+BANK_INTEREST_RATE=0.01  # 1% per day (conservative)
+```
+
+---
+
+## 📊 Database Schema
+
+### Tables Created Automatically
+
+1. **users** - User accounts and balances
+2. **guilds** - Server configurations
+3. **transactions** - All money movements
+4. **warnings** - Moderation warnings
+5. **items** - Shop items
+6. **inventories** - User item ownership
+7. **referrals** - Referral tracking
+8. **command_logs** - Command usage analytics
+
+### Default Items
+
+The bot automatically creates 5 default items:
+- 🍪 Cookie ($10)
+- ☕ Coffee ($25)
+- 🏆 Trophy ($100)
+- 💎 Diamond ($500)
+- 🎁 Gift Box ($50)
+
+---
+
+## 🎯 Testing Checklist
+
+After starting your bot, test these features:
+
+- [ ] Bot appears online in Discord
+- [ ] `/help` command shows all commands
+- [ ] `/balance` shows $0 for new users
+- [ ] `/work` gives money and has cooldown
+- [ ] `/shop` displays items
+- [ ] `/profile` shows user profile
+- [ ] Moderation commands work (if you have permissions)
+- [ ] Error messages are user-friendly
+- [ ] Logs are being created in `logs/` folder
+
+---
+
+## 🚀 Next Steps
+
+### For Development
+1. Read through `ROADMAP.md` for future features
+2. Check `logs/bjorn.log` to understand bot behavior
+3. Explore the cogs to customize commands
+4. Join development by contributing on GitHub
+
+### For Production
+1. Set `DEBUG_MODE=false` in `.env`
+2. Set up proper hosting (VPS, Cloud, etc.)
+3. Configure automatic restarts
+4. Set up monitoring and alerts
+5. Regular database backups
+
+### Adding Custom Commands
+
+Example: Add a new command to `cogs/economy.py`:
+
+```python
+@app_commands.command(name="gamble", description="Gamble your money")
+async def gamble(self, interaction: discord.Interaction, amount: int):
+    # Your command logic here
+    pass
+```
+
+---
+
+## 📞 Support & Resources
+
+- **GitHub Repository:** https://github.com/retrac-ca/bjorn
+- **Report Issues:** https://github.com/retrac-ca/bjorn/issues
+- **Discord.py Docs:** https://discordpy.readthedocs.io/
+- **SQLAlchemy Docs:** https://docs.sqlalchemy.org/
+
+---
+
+## ✅ Verification Checklist
+
+Your bot is fully complete with:
+
+- ✅ **10 command modules** (50+ commands)
+- ✅ **Full economy system** with work, daily, crime
+- ✅ **Banking system** with interest
+- ✅ **4 casino games** fully functional
+- ✅ **Investment system** with risk/reward
+- ✅ **Shop and inventory** management
+- ✅ **User profiles** with customization
+- ✅ **Referral system** with rewards
+- ✅ **Reminder system** with birthdays
+- ✅ **Moderation tools** with auto-ban
+- ✅ **Utility commands** for info and stats
+- ✅ **Error handling** for all scenarios
+- ✅ **Database system** with 8 tables
+- ✅ **Logging system** with color output
+- ✅ **Configuration system** via .env
+- ✅ **Documentation** complete
+
+**Everything is ready to go! Just run `python main.py`**
+
+---
+
+*Last Updated: October 2025*  
+*Bot Version: 1.0.0*  
+*Guide Version: 1.0*

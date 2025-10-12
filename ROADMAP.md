@@ -1,352 +1,303 @@
-# Saint Toadle Bot Development Roadmap
+# Bjorn Bot Development Roadmap
 
-## 🚀 Current Implementation Status
+This document outlines the development plan and progress for the Bjorn Discord bot.
 
-### ✅ Completed Features (v1.0)
+## 🎯 Project Status
 
-#### Core Infrastructure
-- [x] Main bot framework with Discord.py
-- [x] SQLAlchemy database integration with SQLite
-- [x] Comprehensive logging system with colored console output
-- [x] Robust error handling and debugging system
-- [x] Modular cog-based architecture
-- [x] Environment-based configuration system
-- [x] Custom decorators for permissions and validation
+**Current Version:** 1.0.0  
+**Status:** Active Development  
+**Last Updated:** October 2025
 
-#### Economy System
-- [x] Basic earning system (work command)
+---
+
+## ✅ Completed Features
+
+### Phase 1: Core Infrastructure
+- [x] Bot framework setup with discord.py
+- [x] Database architecture with SQLAlchemy
+- [x] Logging system with colored output
+- [x] Error handling system
+- [x] Environment configuration
+- [x] Slash command implementation
+
+### Phase 2: Economy System
+- [x] Basic economy commands (work, balance)
 - [x] Daily bonus system
-- [x] Crime system with risk/reward mechanics
-- [x] Balance checking and user wallets
-- [x] Money transfer system between users
+- [x] Crime system with risk/reward
+- [x] Money transfer between users
 - [x] Wealth leaderboard
-- [x] Transaction logging for audit trails
+- [x] Transaction logging
 
-#### Banking System
-- [x] Deposit/withdraw functionality
-- [x] Bank balance tracking
-- [x] Interest rate configuration
+### Phase 3: Banking System
+- [x] Deposit and withdrawal commands
+- [x] Separate bank balance
+- [x] Interest rate system
+- [x] Bank information display
 
-#### Moderation Tools
-- [x] Warning system with database storage
-- [x] Ban/kick commands with permission checks
-- [x] Message clearing (purge) functionality
-- [x] Auto-ban threshold system
-- [x] Moderation logging and audit trails
+### Phase 4: Casino & Gambling
+- [x] Coinflip game
+- [x] Slot machine
+- [x] Blackjack game
+- [x] Dice betting game
 
-#### Utility Commands
-- [x] Custom help system with categorized commands
-- [x] Ping/latency checking
-- [x] Server information display
-- [x] User information display
-- [x] Bot statistics and system information
+### Phase 5: Investment System
+- [x] Investment command
+- [x] Time-based multipliers
+- [x] Risk/reward mechanics
+- [x] Collection system
+- [x] Investment status tracking
 
-#### User Profiles
-- [x] Basic profile system
-- [x] Experience and leveling system
-- [x] Profile customization (colors, bio)
+### Phase 6: Marketplace
+- [x] Item database
+- [x] Shop display
+- [x] Buy/sell system
+- [x] Inventory management
+- [x] Item usage framework
+
+### Phase 7: User Profiles
+- [x] Profile display
+- [x] Biography system
+- [x] Custom profile colors
+- [x] Rank system
+- [x] Badge framework
 - [x] Statistics tracking
 
-### 🔄 In Progress / Basic Implementation
+### Phase 8: Referral System
+- [x] Referral command
+- [x] Referral tracking
+- [x] Reward distribution
+- [x] Referral statistics
+- [x] Referral leaderboard
 
-#### Referral System
-- [x] Basic cog structure
-- [ ] Invite tracking
-- [ ] Referral rewards
-- [ ] Referral leaderboards
+### Phase 9: Moderation Tools
+- [x] Warning system
+- [x] Warning management
+- [x] Kick command
+- [x] Ban command
+- [x] Bulk message deletion
+- [x] Auto-ban on threshold
 
-#### Marketplace
-- [x] Basic cog structure
-- [x] Item database models
-- [ ] Shop display system
-- [ ] Item purchasing
-- [ ] Inventory management
-- [ ] Item trading
-
----
-
-## 📋 Planned Features (v1.1 - v2.0)
-
-### 🎯 High Priority Features
-
-#### Enhanced Economy System
-- [ ] **Investment System**
-  - Stock market simulation
-  - Investment portfolios
-  - Risk/reward calculations
-  - Market fluctuations
-
-- [ ] **Advanced Crime System**
-  - Multiple crime types with different risks
-  - Criminal reputation system
-  - Heist planning with team mechanics
-  - Police chase mini-games
-
-- [ ] **Job System**
-  - Multiple job types with different pay scales
-  - Job promotions and career progression
-  - Skill requirements for advanced jobs
-  - Company ownership and management
-
-#### Gambling & Games
-- [ ] **Casino Games**
-  - Blackjack with full card mechanics
-  - Poker tournaments
-  - Slot machines with jackpots
-  - Roulette wheel
-  - Dice games
-
-- [ ] **Mini Games**
-  - Trivia competitions with categories
-  - Word games and puzzles
-  - Reaction-based games
-  - Memory games
-
-#### Advanced Marketplace
-- [ ] **Auction System**
-  - Timed auctions for rare items
-  - Bidding mechanics
-  - Auction house management
-  - Reserve price settings
-
-- [ ] **Item Crafting**
-  - Recipe system for combining items
-  - Crafting skill progression
-  - Rare material gathering
-  - Custom item creation
-
-- [ ] **Trading System**
-  - Secure peer-to-peer trading
-  - Trade history and reputation
-  - Bulk trading capabilities
-  - Trade notifications
-
-#### Social Features
-- [ ] **Guild/Clan System**
-  - User-created organizations
-  - Guild banks and shared resources
-  - Guild competitions and wars
-  - Leadership hierarchy
-
-- [ ] **Achievement System**
-  - Comprehensive achievement categories
-  - Progress tracking and notifications
-  - Achievement rewards and titles
-  - Showcase on user profiles
-
-- [ ] **Social Links Integration**
-  - Link social media profiles
-  - Cross-platform verification
-  - Social media activity rewards
-  - Integration with streaming platforms
-
-### 🛠️ Technical Improvements
-
-#### Database Enhancements
-- [ ] **Multi-Guild Support**
-  - Per-guild configuration system
-  - Guild-specific economies
-  - Cross-guild leaderboards
-  - Guild migration tools
-
-- [ ] **Performance Optimizations**
-  - Database query optimization
-  - Caching system for frequently accessed data
-  - Async operation improvements
-  - Memory usage optimization
-
-- [ ] **Backup & Recovery**
-  - Automated database backups
-  - Point-in-time recovery system
-  - Data export/import tools
-  - Disaster recovery procedures
-
-#### Advanced Moderation
-- [ ] **Auto-Moderation**
-  - Spam detection and prevention
-  - Inappropriate content filtering
-  - Raid protection mechanisms
-  - Suspicious activity detection
-
-- [ ] **Moderation Dashboard**
-  - Web-based moderation interface
-  - Detailed moderation statistics
-  - Appeal system for punishments
-  - Moderator activity tracking
-
-#### API & Integrations
-- [ ] **REST API**
-  - External data access
-  - Third-party integrations
-  - Mobile app support
-  - Webhook notifications
-
-- [ ] **Web Dashboard**
-  - User profile management
-  - Guild configuration interface
-  - Statistics and analytics
-  - Real-time bot monitoring
+### Phase 10: Reminders
+- [x] Custom reminder system
+- [x] Birthday tracking
+- [x] Reminder list view
 
 ---
 
-## 💎 Premium Features (Future Consideration)
+## 🚧 In Progress
 
-### 🌟 Advanced Premium Features
+### Currency Actions (Priority: High)
+- [ ] Advanced currency manipulation
+- [ ] Currency conversion system
+- [ ] Special currency events
+- [ ] Hourly/weekly bonuses
 
-#### Premium Economy
-- [ ] **VIP Membership Tiers**
-  - Increased earning rates
-  - Exclusive items and areas
-  - Priority customer support
-  - Special VIP commands
+### Birthday System Enhancement
+- [ ] Birthday announcement system
+- [ ] Birthday rewards
+- [ ] Server-wide birthday celebrations
+- [ ] Birthday calendar view
 
-- [ ] **Advanced Banking**
-  - Higher interest rates for premium users
-  - Investment fund access
-  - Personal financial advisor bot
-  - Exclusive premium-only investments
-
-#### Premium Customization
-- [ ] **Custom Bot Branding**
-  - Custom bot name and avatar
-  - Personalized embed colors
-  - Custom command prefixes
-  - Branded notifications
-
-- [ ] **Advanced Profile Features**
-  - Custom profile backgrounds
-  - Animated profile elements
-  - Extended bio capabilities
-  - Profile visitor tracking
-
-#### Premium Tools
-- [ ] **Analytics Dashboard**
-  - Detailed user behavior analytics
-  - Economy trend analysis
-  - Predictive modeling
-  - Custom report generation
-
-- [ ] **Automation Tools**
-  - Custom command creation
-  - Automated event scheduling
-  - Smart notification system
-  - Workflow automation
-
-### 🎮 Gamification Premium
-- [ ] **Exclusive Game Modes**
-  - Premium-only mini-games
-  - Advanced difficulty levels
-  - Exclusive tournaments
-  - Special event access
-
-- [ ] **Enhanced Social Features**
-  - Private messaging system
-  - Exclusive premium communities
-  - Advanced friend systems
-  - Premium-only events
+### International Day Reminders
+- [ ] Holiday database
+- [ ] Automatic day reminders
+- [ ] Custom celebration messages
+- [ ] Configurable reminder settings
 
 ---
 
-## 🗓️ Release Timeline
+## 📋 Planned Features
 
-### Phase 1: Foundation (v1.0) - ✅ COMPLETE
-**Timeline: Immediate**
-- Core bot functionality
-- Basic economy system
-- Essential moderation tools
-- User profiles and utilities
+### Phase 11: Advanced Economy
+**Priority:** High  
+**ETA:** Q4 2025
 
-### Phase 2: Enhanced Features (v1.1)
-**Timeline: 2-4 weeks after deployment**
-- Complete referral system
-- Full marketplace implementation
-- Advanced gambling games
-- Achievement system
+- [ ] Stock market system
+- [ ] Company ownership
+- [ ] Property system
+- [ ] Passive income streams
+- [ ] Tax system
+- [ ] Bankruptcy protection
 
-### Phase 3: Social & Competition (v1.2)
-**Timeline: 1-2 months after v1.1**
-- Guild/clan system
-- Advanced trading
-- Competition systems
-- Enhanced social features
+### Phase 12: Mini-Games
+**Priority:** Medium  
+**ETA:** Q1 2026
 
-### Phase 4: Automation & Intelligence (v2.0)
-**Timeline: 2-3 months after v1.2**
-- AI-powered features
-- Advanced auto-moderation
-- Predictive systems
-- Machine learning integration
+- [ ] Trivia game
+- [ ] Word scramble
+- [ ] Number guessing
+- [ ] Connect Four
+- [ ] Tic-tac-toe
+- [ ] Rock-paper-scissors tournament
 
-### Phase 5: Premium Features (v2.1+)
-**Timeline: 3-6 months after v2.0**
-- Premium subscription system
-- Advanced analytics
-- Custom branding
-- Enterprise features
+### Phase 13: Pet System
+**Priority:** Medium  
+**ETA:** Q1 2026
+
+- [ ] Pet adoption
+- [ ] Pet care mechanics
+- [ ] Pet battles
+- [ ] Pet breeding
+- [ ] Pet marketplace
+- [ ] Pet accessories
+
+### Phase 14: Guild Features
+**Priority:** High  
+**ETA:** Q4 2025
+
+- [ ] Custom server prefixes
+- [ ] Server-specific settings
+- [ ] Welcome messages
+- [ ] Leave messages
+- [ ] Auto-role system
+- [ ] Custom commands
+
+### Phase 15: Leveling System
+**Priority:** Medium  
+**ETA:** Q1 2026
+
+- [ ] XP from messages
+- [ ] Level-up rewards
+- [ ] Role rewards
+- [ ] Level leaderboard
+- [ ] XP multipliers
+- [ ] Prestige system
+
+### Phase 16: Trading System
+**Priority:** Low  
+**ETA:** Q2 2026
+
+- [ ] Trade requests
+- [ ] Trade confirmations
+- [ ] Trade history
+- [ ] Trade taxes
+- [ ] Auction house
+- [ ] Trade notifications
+
+### Phase 17: Achievement System
+**Priority:** Medium  
+**ETA:** Q1 2026
+
+- [ ] Achievement definitions
+- [ ] Progress tracking
+- [ ] Achievement rewards
+- [ ] Achievement showcase
+- [ ] Rare achievements
+- [ ] Achievement categories
+
+### Phase 18: Web Dashboard
+**Priority:** Low  
+**ETA:** Q3 2026
+
+- [ ] User dashboard
+- [ ] Server management
+- [ ] Statistics visualization
+- [ ] Command logs viewer
+- [ ] Configuration panel
+- [ ] API endpoints
+
+### Phase 19: Premium Features
+**Priority:** Low  
+**ETA:** Q4 2026
+
+- [ ] Premium tier system
+- [ ] Exclusive commands
+- [ ] Increased limits
+- [ ] Custom features
+- [ ] Priority support
+- [ ] Ad-free experience
+
+### Phase 20: Multi-Language Support
+**Priority:** Low  
+**ETA:** 2027
+
+- [ ] Language detection
+- [ ] Translation system
+- [ ] Language command
+- [ ] Localized messages
+- [ ] Community translations
+- [ ] Language preferences
 
 ---
 
-## 🔧 Technical Debt & Improvements
+## 🐛 Known Issues
 
-### Immediate Technical Tasks
-- [ ] Complete all stub implementations in cogs
-- [ ] Add comprehensive unit tests
-- [ ] Implement database migration system
-- [ ] Add API rate limiting
-- [ ] Improve error recovery mechanisms
+### High Priority
+- None currently
 
-### Medium-term Technical Goals
-- [ ] Implement horizontal scaling capabilities
-- [ ] Add comprehensive monitoring and alerting
-- [ ] Create automated deployment pipeline
-- [ ] Implement feature flag system
-- [ ] Add A/B testing framework
+### Medium Priority
+- Investment system needs better balance tuning
+- Cooldown system could be more robust
 
-### Long-term Technical Vision
-- [ ] Microservices architecture
-- [ ] Multi-region deployment
-- [ ] Real-time analytics pipeline
-- [ ] Machine learning model integration
-- [ ] Advanced security implementations
+### Low Priority
+- Some embed formatting could be improved
+- Minor logging inconsistencies
 
 ---
 
-## 📊 Success Metrics
+## 💡 Future Ideas (Backlog)
 
-### User Engagement Metrics
-- Daily active users (DAU)
-- Command usage frequency
-- User retention rates
-- Average session duration
-
-### Economic Health Metrics
-- Total coins in circulation
-- Transaction volume and frequency
-- Wealth distribution patterns
-- Economic activity indicators
-
-### Technical Performance Metrics
-- Bot response time and uptime
-- Database query performance
-- Error rates and resolution time
-- Resource utilization efficiency
-
----
-
-## 🤝 Community & Support
-
-### Community Building
-- [ ] Official Discord server
-- [ ] Documentation website
-- [ ] Video tutorials and guides
-- [ ] Community feedback system
-
-### Developer Support
-- [ ] Comprehensive API documentation
-- [ ] Plugin development framework
-- [ ] Community developer program
-- [ ] Open source contributions
+- Voice channel economy (earn while in voice)
+- Music bot integration
+- Image generation commands
+- AI chatbot integration
+- Custom emoji reactions
+- Server analytics
+- Event scheduler
+- Giveaway system
+- Ticket system
+- Suggestion system
+- Poll system
+- Custom embeds
+- Reaction roles
+- Server backups
+- Moderation logs
+- Mute system with timers
+- Slowmode commands
+- Role management
+- Channel management
+- Webhook management
 
 ---
 
-*This roadmap is a living document and will be updated based on user feedback, technical requirements, and business priorities.*
+## 📊 Development Statistics
+
+- **Total Commands:** 50+
+- **Database Tables:** 8
+- **Lines of Code:** 5,000+
+- **Active Developers:** 1
+- **Contributors:** Open for contributions!
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how you can help:
+
+1. **Report Bugs:** Open an issue on GitHub
+2. **Suggest Features:** Create a feature request
+3. **Submit Code:** Fork and create a pull request
+4. **Documentation:** Improve docs and guides
+5. **Testing:** Help test new features
+
+---
+
+## 📅 Release Schedule
+
+- **v1.0.0** - October 2025 (Current)
+- **v1.1.0** - November 2025 (Currency Actions)
+- **v1.2.0** - December 2025 (Birthday System)
+- **v1.3.0** - January 2026 (Guild Features)
+- **v2.0.0** - Q2 2026 (Major Update)
+
+---
+
+## 📞 Contact & Support
+
+- **GitHub:** https://github.com/retrac-ca/bjorn
+- **Issues:** https://github.com/retrac-ca/bjorn/issues
+- **Discord:** Coming Soon
+
+---
+
+*This roadmap is subject to change based on user feedback and development priorities.*
