@@ -1,568 +1,242 @@
 """
 Economy Commands Cog
 
-This module contains all economy-related commands for the Saint Toadle bot.
-It handles earning coins, checking balances, daily bonuses, crime activities,
-and other economic features.
+This module contains economy-related slash commands for the Bjorn bot,
+including earning, balance checking, daily bonuses, crime, and giving coins.
 """
 
 import random
 from datetime import datetime, timezone, timedelta
-from typing import Optional
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
-from utils.decorators import (
-    requires_economy, requires_balance, log_command_usage, 
-    typing, guild_only, require_database
-)
-from utils.helpers import format_currency, get_random_success_message, validate_amount
+from utils.decorators import requires_economy, log_command_usage, typing, require_database
+from utils.helpers import format_currency, format_time_delta, validate_amount
 from utils.logger import get_logger
 
 
 class EconomyCog(commands.Cog, name="Economy"):
-    """
-    Economy commands cog.
-    
-    This cog provides all economy-related functionality including
-    earning coins, daily bonuses, crime activities, and balance management.
-    """
-    
+    """Economy cog with slash commands."""
+
     def __init__(self, bot):
-        """
-        Initialize the economy cog.
-        
-        Args:
-            bot: The bot instance
-        """
         self.bot = bot
         self.logger = get_logger(__name__)
-        
-        # Cache for cooldowns to improve performance
-        self._earn_cooldowns = {}
-        self._crime_cooldowns = {}
-        
-    @commands.command(name='earn', aliases=['work'], help="Earn coins through work")
-    @require_database
-    @requires_economy
-    @log_command_usage
-    @typing
-    async def earn_coins(self, ctx: commands.Context):
-        """
-        Earn coins through work.
-        
-        Users can earn a random amount of coins within the configured range.
-        Has a cooldown to prevent spam.
-        """
-        user_id = ctx.author.id
-        current_time = datetime.now(timezone.utc)
-        
-        # Check cooldown (5 minutes)
-        cooldown_time = timedelta(minutes=5)
-        last_earn = self._earn_cooldowns.get(user_id)
-        
-        if last_earn and current_time - last_earn < cooldown_time:
-            time_left = cooldown_time - (current_time - last_earn)
-            minutes = int(time_left.total_seconds() // 60)
-            seconds = int(time_left.total_seconds() % 60)
-            
-            embed = discord.Embed(
-                title="⏰ Cooldown Active",
-                description=f"You can work again in {minutes}m {seconds}s",
-                color=0xFFA500
-            )
-            await ctx.send(embed=embed)
-            return
-        
-        # Get or create user
-        user = await self.bot.db.get_user(ctx.author.id, ctx.author.name, ctx.author.discriminator)
-        
-        # Generate random earnings
-        min_earn = self.bot.config.earn_min
-        max_earn = self.bot.config.earn_max
-        earnings = random.randint(min_earn, max_earn)
-        
-        # Update user balance
-        success = await self.bot.db.update_user_balance(user_id, earnings)
-        
-        if not success:
-            embed = discord.Embed(
-                title="❌ Error",
-                description="Failed to update your balance. Please try again.",
-                color=0xFF0000
-            )
-            await ctx.send(embed=embed)
-            return
-        
-        # Log transaction
-        await self.bot.db.log_transaction(
-            user_id=user_id,
-            guild_id=ctx.guild.id,
-            transaction_type='earn',
-            amount=earnings,
-            description='Work earnings'
-        )
-        
-        # Set cooldown
-        self._earn_cooldowns[user_id] = current_time
-        
-        # Create response embed
-        work_activities = [
-            "worked at the factory", "delivered packages", "wrote code",
-            "fixed computers", "taught a class", "cleaned offices",
-            "painted houses", "walked dogs", "did freelance work",
-            "helped at a restaurant", "organized inventory", "repaired electronics"
-        ]
-        
-        activity = random.choice(work_activities)
-        new_balance = user.balance + earnings
-        
+
+    @app_commands.command(name="balance", description="Check your wallet and bank balance")
+    async def balance(self, interaction: discord.Interaction, member: discord.Member = None):
+        """Display the balance of the user or another member."""
+
+        user = member or interaction.user
+        db_user = await self.bot.db.get_user(user.id, user.name, user.discriminator)
+
+        wallet_balance = db_user.balance
+        bank_balance = db_user.bank_balance
+
         embed = discord.Embed(
-            title="💼 Work Complete",
-            description=f"You {activity} and earned {format_currency(earnings)}!",
-            color=0x00FF00
-        )
-        embed.add_field(
-            name="💰 New Balance", 
-            value=format_currency(new_balance), 
-            inline=True
-        )
-        embed.add_field(
-            name="⏰ Next Work", 
-            value="5 minutes", 
-            inline=True
-        )
-        embed.set_footer(text=get_random_success_message())
-        
-        await ctx.send(embed=embed)
-    
-    @commands.command(name='balance', aliases=['bal', 'money'], help="Check your current balance")
-    @require_database
-    @requires_economy
-    @log_command_usage
-    async def check_balance(self, ctx: commands.Context, member: Optional[discord.Member] = None):
-        """
-        Check balance for yourself or another user.
-        
-        Args:
-            member: Optional member to check balance for
-        """
-        target = member or ctx.author
-        user = await self.bot.db.get_user(target.id, target.name, target.discriminator)
-        
-        embed = discord.Embed(
-            title=f"💰 {target.display_name}'s Balance",
+            title=f"💰 {user.display_name}'s Balance",
             color=self.bot.config.get_embed_color()
         )
-        
-        embed.add_field(
-            name="💵 Wallet",
-            value=format_currency(user.balance),
-            inline=True
-        )
-        
-        embed.add_field(
-            name="🏦 Bank",
-            value=format_currency(user.bank_balance),
-            inline=True
-        )
-        
-        total_wealth = user.balance + user.bank_balance
-        embed.add_field(
-            name="💎 Total Wealth",
-            value=format_currency(total_wealth),
-            inline=True
-        )
-        
-        embed.add_field(
-            name="📊 Statistics",
-            value=f"**Total Earned:** {format_currency(user.total_earned)}\n"
-                  f"**Total Spent:** {format_currency(user.total_spent)}\n"
-                  f"**Level:** {user.level}",
-            inline=False
-        )
-        
-        embed.set_thumbnail(url=target.display_avatar.url)
-        embed.set_footer(text=f"Requested by {ctx.author.display_name}")
-        
-        await ctx.send(embed=embed)
-    
-    @commands.command(name='daily', help="Claim your daily bonus")
-    @require_database
-    @requires_economy
-    @log_command_usage
-    @typing
-    async def daily_bonus(self, ctx: commands.Context):
-        """
-        Claim daily bonus coins.
-        
-        Users can claim a daily bonus once every 24 hours.
-        """
-        user_id = ctx.author.id
-        
-        # Check if user can claim daily bonus
-        can_claim = await self.bot.db.can_use_daily(user_id)
-        
-        if not can_claim:
-            user = await self.bot.db.get_user(user_id, ctx.author.name, ctx.author.discriminator)
-            next_claim = user.last_daily + timedelta(hours=24)
-            time_left = next_claim - datetime.now(timezone.utc)
-            
-            hours = int(time_left.total_seconds() // 3600)
-            minutes = int((time_left.total_seconds() % 3600) // 60)
-            
-            embed = discord.Embed(
-                title="⏰ Daily Already Claimed",
-                description=f"You can claim your next daily bonus in {hours}h {minutes}m",
-                color=0xFFA500
-            )
-            await ctx.send(embed=embed)
-            return
-        
-        # Generate random daily bonus
-        min_bonus = self.bot.config.daily_bonus_min
-        max_bonus = self.bot.config.daily_bonus_max
-        bonus_amount = random.randint(min_bonus, max_bonus)
-        
-        # Update user balance and daily timestamp
-        success = await self.bot.db.update_user_balance(user_id, bonus_amount)
-        if success:
-            await self.bot.db.use_daily(user_id)
-        
-        if not success:
-            embed = discord.Embed(
-                title="❌ Error",
-                description="Failed to claim daily bonus. Please try again.",
-                color=0xFF0000
-            )
-            await ctx.send(embed=embed)
-            return
-        
+        embed.add_field(name="Wallet", value=format_currency(wallet_balance), inline=True)
+        embed.add_field(name="Bank", value=format_currency(bank_balance), inline=True)
+        embed.set_thumbnail(url=user.display_avatar.url)
+        embed.set_footer(text="Use /balance to check your balance anytime")
+
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="earn", description="Earn coins by working")
+    async def earn(self, interaction: discord.Interaction):
+        """Earn a random amount of coins (5-minute cooldown)."""
+
+        db_user = await self.bot.db.get_user(interaction.user.id, interaction.user.name, interaction.user.discriminator)
+
+        # Check cooldown: 5 minutes
+        now = datetime.now(timezone.utc)
+        if db_user.last_earn:
+            elapsed = (now - db_user.last_earn).total_seconds()
+            if elapsed < 300:
+                remaining = timedelta(seconds=300 - elapsed)
+                embed = discord.Embed(
+                    title="⌛ Cooldown Active",
+                    description=f"Please wait {format_time_delta(remaining)} before working again.",
+                    color=self.bot.config.get_warning_color()
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
+
+        # Calculate earning
+        amount = random.randint(self.bot.config.earn_min, self.bot.config.earn_max)
+        await self.bot.db.update_user_balance(interaction.user.id, amount)
+        # Update last_earn timestamp in your db as well if not already done
+        db_user.last_earn = now
+        await self.bot.db.use_daily(interaction.user.id)  # If used for updating last_earn
+
         # Log transaction
         await self.bot.db.log_transaction(
-            user_id=user_id,
-            guild_id=ctx.guild.id,
-            transaction_type='daily',
-            amount=bonus_amount,
-            description='Daily bonus'
+            user_id=interaction.user.id,
+            guild_id=interaction.guild.id if interaction.guild else None,
+            transaction_type='earn',
+            amount=amount,
+            description='Work earnings'
         )
-        
-        user = await self.bot.db.get_user(user_id, ctx.author.name, ctx.author.discriminator)
-        
+
         embed = discord.Embed(
-            title="🎁 Daily Bonus Claimed!",
-            description=f"You received {format_currency(bonus_amount)} as your daily bonus!",
-            color=0x00FF00
+            title="💼 Work Completed",
+            description=f"You earned {format_currency(amount)} coins working hard!",
+            color=self.bot.config.get_success_color()
         )
-        embed.add_field(
-            name="💰 New Balance",
-            value=format_currency(user.balance),
-            inline=True
-        )
-        embed.add_field(
-            name="⏰ Next Daily",
-            value="24 hours",
-            inline=True
-        )
-        embed.set_footer(text="Come back tomorrow for another bonus!")
-        
-        await ctx.send(embed=embed)
-    
-    @commands.command(name='crime', help="Commit a crime for potential rewards")
-    @require_database
-    @requires_economy
-    @log_command_usage
-    @typing
-    async def commit_crime(self, ctx: commands.Context):
-        """
-        Commit a crime for potential rewards or fines.
-        
-        Has a chance of success or failure based on configuration.
-        """
-        user_id = ctx.author.id
-        current_time = datetime.now(timezone.utc)
-        
-        # Check cooldown (10 minutes)
-        cooldown_time = timedelta(minutes=10)
-        last_crime = self._crime_cooldowns.get(user_id)
-        
-        if last_crime and current_time - last_crime < cooldown_time:
-            time_left = cooldown_time - (current_time - last_crime)
-            minutes = int(time_left.total_seconds() // 60)
-            seconds = int(time_left.total_seconds() % 60)
-            
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="daily", description="Claim your daily bonus")
+    async def daily(self, interaction: discord.Interaction):
+        """Claim a daily bonus once every 24 hours."""
+
+        db_user = await self.bot.db.get_user(interaction.user.id, interaction.user.name, interaction.user.discriminator)
+
+        if not await self.bot.db.can_use_daily(interaction.user.id):
             embed = discord.Embed(
-                title="🚓 Laying Low",
-                description=f"You need to lay low for {minutes}m {seconds}s before committing another crime",
-                color=0xFFA500
+                title="⌛ Daily Cooldown",
+                description="You can only claim your daily bonus once every 24 hours.",
+                color=self.bot.config.get_warning_color()
             )
-            await ctx.send(embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
-        # Get user
-        user = await self.bot.db.get_user(user_id, ctx.author.name, ctx.author.discriminator)
-        
-        # Determine success/failure
-        success_chance = self.bot.config.crime_success_rate
-        is_successful = random.random() < success_chance
-        
-        crimes = [
-            "robbed a bank", "pickpocketed someone", "hacked a system",
-            "smuggled goods", "ran a con game", "stole a car",
-            "broke into a house", "sold fake items", "cheated at cards",
-            "ran an illegal casino", "counterfeited money", "hijacked a truck"
-        ]
-        
-        crime_activity = random.choice(crimes)
-        
-        if is_successful:
-            # Successful crime - give reward
-            reward_min = self.bot.config.crime_reward_min
-            reward_max = self.bot.config.crime_reward_max
-            reward = random.randint(reward_min, reward_max)
-            
-            await self.bot.db.update_user_balance(user_id, reward)
-            
-            # Log transaction
-            await self.bot.db.log_transaction(
-                user_id=user_id,
-                guild_id=ctx.guild.id,
-                transaction_type='crime_success',
-                amount=reward,
-                description=f'Crime: {crime_activity}'
-            )
-            
-            embed = discord.Embed(
-                title="💰 Crime Successful!",
-                description=f"You {crime_activity} and got away with {format_currency(reward)}!",
-                color=0x00FF00
-            )
-            embed.add_field(
-                name="💰 New Balance",
-                value=format_currency(user.balance + reward),
-                inline=True
-            )
-        else:
-            # Failed crime - apply fine
-            fine_min = self.bot.config.crime_fine_min
-            fine_max = self.bot.config.crime_fine_max
-            fine = random.randint(fine_min, fine_max)
-            
-            # Don't let balance go negative
-            actual_fine = min(fine, user.balance)
-            
-            if actual_fine > 0:
-                await self.bot.db.update_user_balance(user_id, -actual_fine)
-            
-            # Log transaction
-            await self.bot.db.log_transaction(
-                user_id=user_id,
-                guild_id=ctx.guild.id,
-                transaction_type='crime_failure',
-                amount=-actual_fine,
-                description=f'Crime fine: {crime_activity}'
-            )
-            
-            embed = discord.Embed(
-                title="🚔 Crime Failed!",
-                description=f"You tried to {crime_activity[:-2]} but got caught!",
-                color=0xFF0000
-            )
-            
-            if actual_fine > 0:
-                embed.add_field(
-                    name="💸 Fine Paid",
-                    value=format_currency(actual_fine),
-                    inline=True
-                )
-                embed.add_field(
-                    name="💰 New Balance",
-                    value=format_currency(user.balance - actual_fine),
-                    inline=True
-                )
-            else:
-                embed.add_field(
-                    name="🍀 Lucky Break",
-                    value="You're too poor to pay a fine!",
-                    inline=False
-                )
-        
-        # Set cooldown
-        self._crime_cooldowns[user_id] = current_time
-        
-        embed.add_field(
-            name="⏰ Next Crime",
-            value="10 minutes",
-            inline=True
+
+        amount = random.randint(self.bot.config.daily_bonus_min, self.bot.config.daily_bonus_max)
+        await self.bot.db.update_user_balance(interaction.user.id, amount)
+        await self.bot.db.use_daily(interaction.user.id)
+
+        # Log transaction
+        await self.bot.db.log_transaction(
+            user_id=interaction.user.id,
+            guild_id=interaction.guild.id if interaction.guild else None,
+            transaction_type='daily_bonus',
+            amount=amount,
+            description='Daily bonus claimed'
         )
-        embed.set_footer(text="Crime doesn't pay... or does it?")
-        
-        await ctx.send(embed=embed)
-    
-    @commands.command(name='give', aliases=['pay'], help="Give coins to another user")
-    @require_database
-    @requires_economy
-    @log_command_usage
-    @typing
-    @guild_only
-    async def give_coins(self, ctx: commands.Context, member: discord.Member, amount: str):
-        """
-        Give coins to another user.
-        
-        Args:
-            member: Member to give coins to
-            amount: Amount to give
-        """
+
+        embed = discord.Embed(
+            title="🎉 Daily Bonus Claimed!",
+            description=f"You received {format_currency(amount)} coins as your daily bonus!",
+            color=self.bot.config.get_success_color()
+        )
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="give", description="Give coins to another user")
+    @app_commands.describe(member="Member to give coins to", amount="Amount of coins to give")
+    async def give(self, interaction: discord.Interaction, member: discord.Member, amount: int):
+        """Transfer coins from your wallet to another user."""
+
         if member.bot:
             embed = discord.Embed(
                 title="❌ Invalid Target",
                 description="You cannot give coins to bots.",
-                color=0xFF0000
+                color=self.bot.config.get_error_color()
             )
-            await ctx.send(embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
-        if member.id == ctx.author.id:
-            embed = discord.Embed(
-                title="❌ Invalid Target",
-                description="You cannot give coins to yourself.",
-                color=0xFF0000
-            )
-            await ctx.send(embed=embed)
-            return
-        
-        # Get sender
-        sender = await self.bot.db.get_user(ctx.author.id, ctx.author.name, ctx.author.discriminator)
-        
+
         # Validate amount
-        parsed_amount = validate_amount(amount, minimum=1, maximum=sender.balance)
-        
-        if parsed_amount is None:
+        if amount <= 0:
             embed = discord.Embed(
                 title="❌ Invalid Amount",
-                description=f"Please specify a valid amount between 1 and {format_currency(sender.balance)}.",
-                color=0xFF0000
+                description="Amount must be greater than zero.",
+                color=self.bot.config.get_error_color()
             )
-            await ctx.send(embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
-        if parsed_amount > sender.balance:
+
+        user = interaction.user
+        db_user = await self.bot.db.get_user(user.id, user.name, user.discriminator)
+        db_member = await self.bot.db.get_user(member.id, member.name, member.discriminator)
+
+        if db_user.balance < amount:
             embed = discord.Embed(
-                title="💰 Insufficient Funds",
-                description=f"You don't have enough coins. Your balance: {format_currency(sender.balance)}",
-                color=0xFF0000
+                title="❌ Insufficient Funds",
+                description=f"You only have {format_currency(db_user.balance)} coins.",
+                color=self.bot.config.get_error_color()
             )
-            await ctx.send(embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
-        # Process transfer
-        sender_success = await self.bot.db.update_user_balance(ctx.author.id, -parsed_amount)
-        recipient_success = await self.bot.db.update_user_balance(member.id, parsed_amount)
-        
-        if not (sender_success and recipient_success):
-            # Rollback if needed
-            if sender_success:
-                await self.bot.db.update_user_balance(ctx.author.id, parsed_amount)
-            
-            embed = discord.Embed(
-                title="❌ Transfer Failed",
-                description="The transfer could not be completed. Please try again.",
-                color=0xFF0000
-            )
-            await ctx.send(embed=embed)
-            return
-        
+
+        # Perform transaction
+        await self.bot.db.update_user_balance(user.id, -amount)
+        await self.bot.db.update_user_balance(member.id, amount)
+
         # Log transactions
         await self.bot.db.log_transaction(
-            user_id=ctx.author.id,
-            guild_id=ctx.guild.id,
-            transaction_type='transfer_sent',
-            amount=-parsed_amount,
+            user_id=user.id,
+            guild_id=interaction.guild.id if interaction.guild else None,
+            transaction_type='transfer_out',
+            amount=-amount,
             description=f'Transfer to {member.display_name}',
             related_user_id=member.id
         )
-        
         await self.bot.db.log_transaction(
             user_id=member.id,
-            guild_id=ctx.guild.id,
-            transaction_type='transfer_received',
-            amount=parsed_amount,
-            description=f'Transfer from {ctx.author.display_name}',
-            related_user_id=ctx.author.id
+            guild_id=interaction.guild.id if interaction.guild else None,
+            transaction_type='transfer_in',
+            amount=amount,
+            description=f'Transfer from {user.display_name}',
+            related_user_id=user.id
         )
-        
+
         embed = discord.Embed(
             title="💸 Transfer Complete",
-            description=f"{ctx.author.mention} gave {format_currency(parsed_amount)} to {member.mention}!",
-            color=0x00FF00
+            description=f"You gave {format_currency(amount)} coins to {member.mention}.",
+            color=self.bot.config.get_success_color()
         )
-        embed.add_field(
-            name=f"{ctx.author.display_name}'s Balance",
-            value=format_currency(sender.balance - parsed_amount),
-            inline=True
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="crime", description="Attempt a risky crime to earn coins")
+    async def crime(self, interaction: discord.Interaction):
+        """Risk some coins with a crime. High risk, high reward!"""
+
+        db_user = await self.bot.db.get_user(interaction.user.id, interaction.user.name, interaction.user.discriminator)
+
+        # Determine success chance and rewards
+        success_chance = self.bot.config.crime_success_rate
+        success = random.random() < success_chance
+
+        if success:
+            amount = random.randint(self.bot.config.crime_reward_min, self.bot.config.crime_reward_max)
+            await self.bot.db.update_user_balance(interaction.user.id, amount)
+            transaction_type = "crime_success"
+            description = "Crime succeeded"
+            color = self.bot.config.get_success_color()
+            title = "🏆 Crime Success!"
+            desc = f"You successfully earned {format_currency(amount)} coins!"
+        else:
+            fine = random.randint(self.bot.config.crime_fine_min, self.bot.config.crime_fine_max)
+            if db_user.balance >= fine:
+                await self.bot.db.update_user_balance(interaction.user.id, -fine)
+                fine_text = f" and lost {format_currency(fine)} coins in fines"
+                transaction_type = "crime_fail"
+                description = "Crime failed with fine"
+            else:
+                fine_text = ", but you had no coins to pay fines"
+                transaction_type = "crime_fail_no_funds"
+                description = "Crime failed, no funds for fines"
+            color = self.bot.config.get_error_color()
+            title = "🚔 Crime Failed!"
+            desc = f"You got caught{fine_text}."
+
+        # Log transaction
+        await self.bot.db.log_transaction(
+            user_id=interaction.user.id,
+            guild_id=interaction.guild.id if interaction.guild else None,
+            transaction_type=transaction_type,
+            amount=amount if success else -fine if db_user.balance >= fine else 0,
+            description=description
         )
-        embed.set_footer(text="Generosity is rewarding!")
-        
-        await ctx.send(embed=embed)
-    
-    @commands.command(name='leaderboard', aliases=['lb', 'top'], help="View the richest users")
-    @require_database
-    @requires_economy
-    @log_command_usage
-    async def leaderboard(self, ctx: commands.Context, page: int = 1):
-        """
-        Display the wealth leaderboard.
-        
-        Args:
-            page: Page number to view
-        """
-        users_per_page = 10
-        offset = (page - 1) * users_per_page
-        
-        # Get leaderboard data
-        leaderboard_data = await self.bot.db.get_leaderboard(limit=users_per_page)
-        
-        if not leaderboard_data:
-            embed = discord.Embed(
-                title="📊 Wealth Leaderboard",
-                description="No users found in the leaderboard.",
-                color=self.bot.config.get_embed_color()
-            )
-            await ctx.send(embed=embed)
-            return
-        
+
         embed = discord.Embed(
-            title="📊 Wealth Leaderboard",
-            color=self.bot.config.get_embed_color()
+            title=title,
+            description=desc,
+            color=color
         )
-        
-        leaderboard_text = ""
-        for i, user_data in enumerate(leaderboard_data, start=offset + 1):
-            # Try to get user from Discord
-            try:
-                user = self.bot.get_user(user_data.id)
-                display_name = user.display_name if user else f"User#{user_data.id}"
-            except:
-                display_name = f"User#{user_data.id}"
-            
-            total_wealth = user_data.balance + user_data.bank_balance
-            
-            # Add medal emojis for top 3
-            medal = ""
-            if i == 1:
-                medal = "🥇 "
-            elif i == 2:
-                medal = "🥈 "
-            elif i == 3:
-                medal = "🥉 "
-            
-            leaderboard_text += f"{medal}**{i}.** {display_name} - {format_currency(total_wealth)}\n"
-        
-        embed.description = leaderboard_text
-        embed.set_footer(text=f"Page {page} • Use {ctx.prefix}leaderboard <page> to view other pages")
-        
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
 
 
 async def setup(bot):

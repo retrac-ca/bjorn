@@ -1,15 +1,5 @@
 """
-Cogs module initialization.
+Cogs Package
 
-This module contains all the command cogs for the Saint Toadle bot.
+This package contains all command cogs for the Bjorn bot.
 """
-
-__all__ = [
-    'economy', 
-    'moderation', 
-    'utility', 
-    'referral', 
-    'marketplace', 
-    'profile', 
-    'bank'
-]

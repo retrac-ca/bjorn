@@ -23,7 +23,6 @@ class BotConfig:
         
         # Discord Bot Configuration
         self.discord_token: str = os.getenv('DISCORD_TOKEN', '')
-        self.bot_prefix: str = os.getenv('BOT_PREFIX', '!')
         self.bot_name: str = os.getenv('BOT_NAME', 'Bjorn')
         self.debug_mode: bool = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
         
@@ -40,17 +39,19 @@ class BotConfig:
         self.referral_bonus: int = int(os.getenv('REFERRAL_BONUS', '50'))
         self.bank_interest_rate: float = float(os.getenv('BANK_INTEREST_RATE', '0.02'))
         
+        # Investment System Settings
+        self.investment_min_amount: int = int(os.getenv('INVESTMENT_MIN_AMOUNT', '100'))
+        self.investment_max_amount: int = int(os.getenv('INVESTMENT_MAX_AMOUNT', '10000'))
+        self.investment_min_return: float = float(os.getenv('INVESTMENT_MIN_RETURN', '0.5'))
+        self.investment_max_return: float = float(os.getenv('INVESTMENT_MAX_RETURN', '2.5'))
+        self.investment_risk_chance: float = float(os.getenv('INVESTMENT_RISK_CHANCE', '0.3'))
+        
         # Crime System Settings
         self.crime_success_rate: float = float(os.getenv('CRIME_SUCCESS_RATE', '0.75'))
         self.crime_reward_min: int = int(os.getenv('CRIME_REWARD_MIN', '25'))
         self.crime_reward_max: int = int(os.getenv('CRIME_REWARD_MAX', '150'))
         self.crime_fine_min: int = int(os.getenv('CRIME_FINE_MIN', '10'))
         self.crime_fine_max: int = int(os.getenv('CRIME_FINE_MAX', '75'))
-        
-        # Investment System Settings
-        self.investment_fail_rate: float = float(os.getenv('INVESTMENT_FAIL_RATE', '0.25'))
-        self.investment_min_multiplier: float = float(os.getenv('INVESTMENT_MIN_MULTIPLIER', '0.5'))
-        self.investment_max_multiplier: float = float(os.getenv('INVESTMENT_MAX_MULTIPLIER', '2.0'))
         
         # Moderation Settings
         self.auto_ban_threshold: int = int(os.getenv('AUTO_BAN_THRESHOLD', '5'))
@@ -68,7 +69,8 @@ class BotConfig:
         self.referral_enabled: bool = os.getenv('REFERRAL_ENABLED', 'true').lower() == 'true'
         self.marketplace_enabled: bool = os.getenv('MARKETPLACE_ENABLED', 'true').lower() == 'true'
         self.profiles_enabled: bool = os.getenv('PROFILES_ENABLED', 'true').lower() == 'true'
-        self.gambling_enabled: bool = os.getenv('GAMBLING_ENABLED', 'true').lower() == 'true'
+        self.investment_enabled: bool = os.getenv('INVESTMENT_ENABLED', 'true').lower() == 'true'
+        self.daily_interest_enabled: bool = os.getenv('DAILY_INTEREST_ENABLED', 'true').lower() == 'true'
         
         # Advanced Settings
         self.command_cooldown: int = int(os.getenv('COMMAND_COOLDOWN', '3'))
@@ -79,12 +81,7 @@ class BotConfig:
         self._validate_config()
     
     def _validate_config(self):
-        """
-        Validate configuration settings and ensure they are within acceptable ranges.
-        
-        Raises:
-            ValueError: If any configuration value is invalid
-        """
+        """Validate configuration settings and ensure they are within acceptable ranges."""
         # Validate Discord token
         if not self.discord_token:
             raise ValueError("DISCORD_TOKEN is required but not set!")
@@ -99,107 +96,52 @@ class BotConfig:
         if self.weekly_bonus_min >= self.weekly_bonus_max:
             raise ValueError("WEEKLY_BONUS_MIN must be less than WEEKLY_BONUS_MAX")
         
+        # Validate investment settings
+        if self.investment_min_amount >= self.investment_max_amount:
+            raise ValueError("INVESTMENT_MIN_AMOUNT must be less than INVESTMENT_MAX_AMOUNT")
+        
+        if not (0 <= self.investment_risk_chance <= 1):
+            raise ValueError("INVESTMENT_RISK_CHANCE must be between 0 and 1")
+        
         # Validate rates (must be between 0 and 1)
         if not (0 <= self.crime_success_rate <= 1):
             raise ValueError("CRIME_SUCCESS_RATE must be between 0 and 1")
         
-        if not (0 <= self.investment_fail_rate <= 1):
-            raise ValueError("INVESTMENT_FAIL_RATE must be between 0 and 1")
-        
         if not (0 <= self.bank_interest_rate <= 1):
             raise ValueError("BANK_INTEREST_RATE must be between 0 and 1")
-        
-        # Validate positive integers
-        positive_int_settings = [
-            ('earn_min', self.earn_min),
-            ('earn_max', self.earn_max),
-            ('daily_bonus_min', self.daily_bonus_min),
-            ('daily_bonus_max', self.daily_bonus_max),
-            ('weekly_bonus_min', self.weekly_bonus_min),
-            ('weekly_bonus_max', self.weekly_bonus_max),
-            ('referral_bonus', self.referral_bonus),
-            ('crime_reward_min', self.crime_reward_min),
-            ('crime_reward_max', self.crime_reward_max),
-            ('crime_fine_min', self.crime_fine_min),
-            ('crime_fine_max', self.crime_fine_max),
-            ('auto_ban_threshold', self.auto_ban_threshold),
-            ('log_retention_days', self.log_retention_days),
-            ('command_cooldown', self.command_cooldown),
-            ('max_warnings_per_user', self.max_warnings_per_user),
-            ('session_timeout', self.session_timeout)
-        ]
-        
-        for setting_name, value in positive_int_settings:
-            if value < 0:
-                raise ValueError(f"{setting_name.upper()} must be a positive integer")
     
     def get_embed_color(self) -> int:
-        """
-        Get the default embed color for the bot.
-        
-        Returns:
-            int: Hex color value for embeds
-        """
+        """Get the default embed color for the bot."""
         return 0x7289DA  # Discord blurple
     
     def get_success_color(self) -> int:
-        """
-        Get the success color for embeds.
-        
-        Returns:
-            int: Hex color value for success embeds
-        """
+        """Get the success color for embeds."""
         return 0x00FF00  # Green
     
     def get_error_color(self) -> int:
-        """
-        Get the error color for embeds.
-        
-        Returns:
-            int: Hex color value for error embeds
-        """
+        """Get the error color for embeds."""
         return 0xFF0000  # Red
     
     def get_warning_color(self) -> int:
-        """
-        Get the warning color for embeds.
-        
-        Returns:
-            int: Hex color value for warning embeds
-        """
+        """Get the warning color for embeds."""
         return 0xFFA500  # Orange
     
     def get_info_color(self) -> int:
-        """
-        Get the info color for embeds.
-        
-        Returns:
-            int: Hex color value for info embeds
-        """
+        """Get the info color for embeds."""
         return 0x00FFFF  # Cyan
     
     def __str__(self) -> str:
-        """
-        String representation of the configuration (without sensitive data).
-        
-        Returns:
-            str: Configuration summary
-        """
+        """String representation of the configuration (without sensitive data)."""
         return (
             f"BotConfig("
-            f"prefix='{self.bot_prefix}', "
             f"name='{self.bot_name}', "
             f"debug={self.debug_mode}, "
             f"economy={self.economy_enabled}, "
-            f"moderation={self.moderation_enabled}"
+            f"moderation={self.moderation_enabled}, "
+            f"investment={self.investment_enabled}"
             f")"
         )
     
     def __repr__(self) -> str:
-        """
-        Detailed representation of the configuration.
-        
-        Returns:
-            str: Detailed configuration info
-        """
+        """Detailed representation of the configuration."""
         return self.__str__()

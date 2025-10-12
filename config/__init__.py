@@ -1,9 +1,5 @@
 """
-Configuration module initialization.
+Configuration Package
 
-This module provides centralized configuration management for the Saint Toadle bot.
+This package contains configuration modules for the Bjorn bot.
 """
-
-from .settings import BotConfig
-
-__all__ = ['BotConfig']

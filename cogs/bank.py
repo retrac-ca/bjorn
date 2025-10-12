@@ -1,201 +1,163 @@
 """
 Bank Commands Cog
 
-This module contains banking commands for the Saint Toadle bot including
-deposit, withdraw, and interest management.
+This module contains banking-related slash commands for the Bjorn bot,
+including deposits, withdrawals, and interest tracking.
 """
 
-import random
-from datetime import datetime, timezone, timedelta
-from typing import Optional
-
 import discord
+from discord import app_commands
 from discord.ext import commands
 
-from utils.decorators import requires_economy, log_command_usage, typing, require_database
-from utils.helpers import format_currency, validate_amount
 from utils.logger import get_logger
+from utils.helpers import format_currency
+from utils.decorators import log_command_usage
 
 
 class BankCog(commands.Cog, name="Bank"):
     """
-    Banking commands cog.
+    Banking cog with slash commands.
     
-    This cog provides banking functionality including deposits,
-    withdrawals, and interest calculations.
+    Provides deposit, withdraw, and bank balance management.
     """
-    
+
     def __init__(self, bot):
-        """
-        Initialize the bank cog.
-        
-        Args:
-            bot: The bot instance
-        """
         self.bot = bot
         self.logger = get_logger(__name__)
-    
-    @commands.command(name='deposit', aliases=['dep'], help="Deposit coins into your bank account")
-    @require_database
-    @requires_economy
-    @log_command_usage
-    @typing
-    async def deposit_coins(self, ctx: commands.Context, amount: str):
+
+    @app_commands.command(name="deposit", description="Deposit coins from wallet to bank")
+    @app_commands.describe(amount="Amount to deposit (or 'all' for everything)")
+    async def deposit(self, interaction: discord.Interaction, amount: str):
         """
-        Deposit coins into bank account.
-        
-        Args:
-            amount: Amount to deposit (or 'all'/'max')
+        Move coins from wallet to bank for safety.
         """
-        user = await self.bot.db.get_user(ctx.author.id, ctx.author.name, ctx.author.discriminator)
+        user = await self.bot.db.get_user(interaction.user.id, interaction.user.name, interaction.user.discriminator)
         
-        # Validate amount
-        parsed_amount = validate_amount(amount, minimum=1, maximum=user.balance)
-        
-        if parsed_amount is None or parsed_amount > user.balance:
+        if amount.lower() == "all":
+            deposit_amount = user.balance
+        else:
+            try:
+                deposit_amount = int(amount)
+            except ValueError:
+                embed = discord.Embed(
+                    title="❌ Invalid Amount",
+                    description="Please enter a valid number or 'all'.",
+                    color=self.bot.config.get_error_color()
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
+
+        if deposit_amount <= 0:
             embed = discord.Embed(
                 title="❌ Invalid Amount",
-                description=f"Please specify a valid amount between 1 and {format_currency(user.balance)}.",
-                color=0xFF0000
+                description="Amount must be greater than 0.",
+                color=self.bot.config.get_error_color()
             )
-            await ctx.send(embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
-        # Handle "all" or "max"
-        if amount.lower() in ['all', 'max']:
-            parsed_amount = user.balance
-        
-        if parsed_amount <= 0:
+
+        if user.balance < deposit_amount:
             embed = discord.Embed(
-                title="💰 No Coins to Deposit",
-                description="You don't have any coins to deposit.",
-                color=0xFF0000
+                title="❌ Insufficient Funds",
+                description=f"You only have {format_currency(user.balance)} in your wallet.",
+                color=self.bot.config.get_error_color()
             )
-            await ctx.send(embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
-        # Update balances
-        wallet_success = await self.bot.db.update_user_balance(ctx.author.id, -parsed_amount)
-        
-        if wallet_success:
-            # Update bank balance directly (need to add this method to database manager)
-            async with self.bot.db.session_factory() as session:
-                user_db = await session.get(self.bot.db.__class__.__module__.User, ctx.author.id)
-                if user_db:
-                    user_db.bank_balance += parsed_amount
-                    await session.commit()
-        
+
+        # Perform deposit
+        await self.bot.db.update_user_balance(interaction.user.id, -deposit_amount)
+        await self.bot.db.update_bank_balance(interaction.user.id, deposit_amount)
+
         # Log transaction
         await self.bot.db.log_transaction(
-            user_id=ctx.author.id,
-            guild_id=ctx.guild.id,
+            user_id=interaction.user.id,
+            guild_id=interaction.guild.id if interaction.guild else None,
             transaction_type='deposit',
-            amount=parsed_amount,
+            amount=deposit_amount,
             description='Bank deposit'
         )
-        
+
         embed = discord.Embed(
             title="🏦 Deposit Successful",
-            description=f"You deposited {format_currency(parsed_amount)} into your bank account!",
-            color=0x00FF00
+            description=f"Deposited {format_currency(deposit_amount)} to your bank account.",
+            color=self.bot.config.get_success_color()
         )
         
-        embed.add_field(
-            name="💵 Wallet",
-            value=format_currency(user.balance - parsed_amount),
-            inline=True
-        )
-        
-        embed.add_field(
-            name="🏦 Bank",
-            value=format_currency(user.bank_balance + parsed_amount),
-            inline=True
-        )
-        
-        embed.set_footer(text="Your money is safe in the bank!")
-        
-        await ctx.send(embed=embed)
-    
-    @commands.command(name='withdraw', aliases=['with'], help="Withdraw coins from your bank account")
-    @require_database
-    @requires_economy
-    @log_command_usage
-    @typing
-    async def withdraw_coins(self, ctx: commands.Context, amount: str):
+        # Show new balances
+        new_wallet = user.balance - deposit_amount
+        new_bank = user.bank_balance + deposit_amount
+        embed.add_field(name="Wallet", value=format_currency(new_wallet), inline=True)
+        embed.add_field(name="Bank", value=format_currency(new_bank), inline=True)
+
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="withdraw", description="Withdraw coins from bank to wallet")
+    @app_commands.describe(amount="Amount to withdraw (or 'all' for everything)")
+    async def withdraw(self, interaction: discord.Interaction, amount: str):
         """
-        Withdraw coins from bank account.
-        
-        Args:
-            amount: Amount to withdraw (or 'all'/'max')
+        Move coins from bank to wallet.
         """
-        user = await self.bot.db.get_user(ctx.author.id, ctx.author.name, ctx.author.discriminator)
+        user = await self.bot.db.get_user(interaction.user.id, interaction.user.name, interaction.user.discriminator)
         
-        # Handle "all" or "max"
-        if amount.lower() in ['all', 'max']:
-            parsed_amount = user.bank_balance
+        if amount.lower() == "all":
+            withdraw_amount = user.bank_balance
         else:
-            # Validate amount
-            parsed_amount = validate_amount(amount, minimum=1, maximum=user.bank_balance)
-        
-        if parsed_amount is None or parsed_amount > user.bank_balance:
+            try:
+                withdraw_amount = int(amount)
+            except ValueError:
+                embed = discord.Embed(
+                    title="❌ Invalid Amount",
+                    description="Please enter a valid number or 'all'.",
+                    color=self.bot.config.get_error_color()
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
+
+        if withdraw_amount <= 0:
             embed = discord.Embed(
                 title="❌ Invalid Amount",
-                description=f"Please specify a valid amount between 1 and {format_currency(user.bank_balance)}.",
-                color=0xFF0000
+                description="Amount must be greater than 0.",
+                color=self.bot.config.get_error_color()
             )
-            await ctx.send(embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
-        if parsed_amount <= 0:
+
+        if user.bank_balance < withdraw_amount:
             embed = discord.Embed(
-                title="🏦 No Coins to Withdraw",
-                description="You don't have any coins in your bank account.",
-                color=0xFF0000
+                title="❌ Insufficient Funds",
+                description=f"You only have {format_currency(user.bank_balance)} in your bank.",
+                color=self.bot.config.get_error_color()
             )
-            await ctx.send(embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
-        # Update balances
-        wallet_success = await self.bot.db.update_user_balance(ctx.author.id, parsed_amount)
-        
-        if wallet_success:
-            # Update bank balance directly
-            async with self.bot.db.session_factory() as session:
-                user_db = await session.get(self.bot.db.__class__.__module__.User, ctx.author.id)
-                if user_db:
-                    user_db.bank_balance -= parsed_amount
-                    await session.commit()
-        
+
+        # Perform withdrawal
+        await self.bot.db.update_bank_balance(interaction.user.id, -withdraw_amount)
+        await self.bot.db.update_user_balance(interaction.user.id, withdraw_amount)
+
         # Log transaction
         await self.bot.db.log_transaction(
-            user_id=ctx.author.id,
-            guild_id=ctx.guild.id,
+            user_id=interaction.user.id,
+            guild_id=interaction.guild.id if interaction.guild else None,
             transaction_type='withdrawal',
-            amount=parsed_amount,
+            amount=withdraw_amount,
             description='Bank withdrawal'
         )
-        
+
         embed = discord.Embed(
             title="🏦 Withdrawal Successful",
-            description=f"You withdrew {format_currency(parsed_amount)} from your bank account!",
-            color=0x00FF00
+            description=f"Withdrew {format_currency(withdraw_amount)} from your bank account.",
+            color=self.bot.config.get_success_color()
         )
         
-        embed.add_field(
-            name="💵 Wallet",
-            value=format_currency(user.balance + parsed_amount),
-            inline=True
-        )
-        
-        embed.add_field(
-            name="🏦 Bank",
-            value=format_currency(user.bank_balance - parsed_amount),
-            inline=True
-        )
-        
-        embed.set_footer(text="Don't spend it all at once!")
-        
-        await ctx.send(embed=embed)
+        # Show new balances
+        new_wallet = user.balance + withdraw_amount
+        new_bank = user.bank_balance - withdraw_amount
+        embed.add_field(name="Wallet", value=format_currency(new_wallet), inline=True)
+        embed.add_field(name="Bank", value=format_currency(new_bank), inline=True)
+
+        await interaction.response.send_message(embed=embed)
 
 
 async def setup(bot):
