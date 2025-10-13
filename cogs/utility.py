@@ -304,8 +304,22 @@ class UtilityCog(commands.Cog, name="Utility"):
         total_users = len(set(self.bot.get_all_members()))
         total_guilds = len(self.bot.guilds)
 
-        # Get database stats
-        db_stats = await self.bot.db.get_database_stats()
+        # Get database stats manually
+        from sqlalchemy import select, func
+        from config.database import User, Transaction, Item
+        
+        async with self.bot.db.session_factory() as session:
+            # Count users
+            users_result = await session.execute(select(func.count(User.id)))
+            user_count = users_result.scalar() or 0
+            
+            # Count transactions
+            trans_result = await session.execute(select(func.count(Transaction.id)))
+            transaction_count = trans_result.scalar() or 0
+            
+            # Count items
+            items_result = await session.execute(select(func.count(Item.id)))
+            item_count = items_result.scalar() or 0
 
         # System info
         process = psutil.Process()
@@ -350,9 +364,9 @@ class UtilityCog(commands.Cog, name="Utility"):
         # Database Stats
         embed.add_field(
             name="🗄️ Database",
-            value=f"**Users:** {db_stats.get('users', 0):,}\n"
-                  f"**Transactions:** {db_stats.get('transactions', 0):,}\n"
-                  f"**Items:** {db_stats.get('items', 0):,}",
+            value=f"**Users:** {user_count:,}\n"
+                  f"**Transactions:** {transaction_count:,}\n"
+                  f"**Items:** {item_count:,}",
             inline=True
         )
 
@@ -435,14 +449,21 @@ class UtilityCog(commands.Cog, name="Utility"):
             inline=True
         )
 
-        # Activity Stats
-        embed.add_field(
-            name="📈 Activity",
-            value=f"**Commands Used:** {user.commands_used:,}\n"
-                  f"**Messages Sent:** {user.messages_sent:,}\n"
-                  f"**Level:** {user.level}",
-            inline=True
-        )
+        # Activity Stats (if available)
+        activity_parts = []
+        if hasattr(user, 'commands_used'):
+            activity_parts.append(f"**Commands Used:** {user.commands_used:,}")
+        if hasattr(user, 'messages_sent'):
+            activity_parts.append(f"**Messages Sent:** {user.messages_sent:,}")
+        if hasattr(user, 'level'):
+            activity_parts.append(f"**Level:** {user.level}")
+        
+        if activity_parts:
+            embed.add_field(
+                name="📈 Activity",
+                value="\n".join(activity_parts),
+                inline=True
+            )
 
         # Calculate some fun stats
         profit = user.total_earned - user.total_spent

@@ -48,7 +48,13 @@ class EconomyCog(commands.Cog, name="Economy"):
         embed.add_field(name="💎 Net Worth", value=f"${db_user.balance + db_user.bank_balance:,}", inline=True)
         
         embed.set_thumbnail(url=target.display_avatar.url)
-        embed.set_footer(text=f"Level {db_user.level} • Total Earned: ${db_user.total_earned:,}")
+        
+        # Build footer with available attributes
+        footer_parts = []
+        if hasattr(db_user, 'level'):
+            footer_parts.append(f"Level {db_user.level}")
+        footer_parts.append(f"Total Earned: ${db_user.total_earned:,}")
+        embed.set_footer(text=" • ".join(footer_parts))
         
         await interaction.response.send_message(embed=embed)
 
@@ -71,12 +77,15 @@ class EconomyCog(commands.Cog, name="Economy"):
         
         # Update user balance
         await self.bot.db.update_user_balance(user_id, amount)
-        await self.bot.db.log_transaction(
-            user_id, 
-            interaction.guild.id if interaction.guild else 0,
-            'work',
-            amount
-        )
+        
+        # Log transaction if method exists
+        if hasattr(self.bot.db, 'log_transaction'):
+            await self.bot.db.log_transaction(
+                user_id, 
+                interaction.guild.id if interaction.guild else 0,
+                'work',
+                amount
+            )
         
         self.work_cooldowns[user_id] = datetime.now()
 
@@ -301,20 +310,27 @@ class EconomyCog(commands.Cog, name="Economy"):
             page = 1
 
         per_page = 10
-        offset = (page - 1) * per_page
-
-        # Get top users
-        top_users = await self.bot.db.get_leaderboard(limit=per_page + offset, order_by='balance')
         
+        # Get top users by net worth
+        from sqlalchemy import select, desc
+        from config.database import User
+        
+        async with self.bot.db.session_factory() as session:
+            # Get all users ordered by total wealth (balance + bank)
+            result = await session.execute(
+                select(User).order_by(desc(User.balance + User.bank_balance)).limit(100)
+            )
+            top_users = result.scalars().all()
+
         if not top_users:
             await interaction.response.send_message("No users found!", ephemeral=True)
             return
 
-        # Calculate total pages
-        total_users = len(top_users)
-        total_pages = (total_users + per_page - 1) // per_page
+        # Calculate pagination
+        total_pages = max(1, (len(top_users) + per_page - 1) // per_page)
+        page = min(page, total_pages)
         
-        # Get page slice
+        offset = (page - 1) * per_page
         page_users = top_users[offset:offset + per_page]
 
         embed = discord.Embed(

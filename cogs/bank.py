@@ -177,7 +177,11 @@ class BankCog(commands.Cog, name="Bank"):
             inline=False
         )
 
-        user = await self.bot.db.get_user(interaction.user.id)
+        user = await self.bot.db.get_user(
+            interaction.user.id,
+            interaction.user.name,
+            interaction.user.discriminator
+        )
         daily_interest = int(user.bank_balance * self.bot.config.bank_interest_rate)
         
         if user.bank_balance > 0:

@@ -24,9 +24,9 @@ class ProfileCog(commands.Cog, name="Profile"):
         target = user or interaction.user
         db_user = await self.bot.db.get_user(target.id, target.name, target.discriminator)
 
-        # Calculate level progress
-        current_level = db_user.level
-        current_exp = db_user.experience
+        # Get level and experience if available
+        current_level = getattr(db_user, 'level', 1)
+        current_exp = getattr(db_user, 'experience', 0)
         exp_needed = get_exp_for_level(current_level + 1)
         exp_progress = current_exp - get_exp_for_level(current_level)
         exp_for_level = exp_needed - get_exp_for_level(current_level)
@@ -35,23 +35,25 @@ class ProfileCog(commands.Cog, name="Profile"):
 
         embed = discord.Embed(
             title=f"{target.display_name}'s Profile",
-            color=db_user.profile_color or discord.Color.blue()
+            color=getattr(db_user, 'profile_color', None) or discord.Color.blue()
         )
         
         embed.set_thumbnail(url=target.display_avatar.url)
 
         # Bio
-        if db_user.bio:
-            embed.description = db_user.bio
+        bio = getattr(db_user, 'bio', None)
+        if bio:
+            embed.description = bio
 
-        # Level & Experience
-        embed.add_field(
-            name="📊 Level & Experience",
-            value=f"**Level:** {current_level}\n"
-                  f"**XP:** {current_exp:,} ({exp_progress}/{exp_for_level})\n"
-                  f"{progress_bar}",
-            inline=False
-        )
+        # Level & Experience (if available)
+        if hasattr(db_user, 'level') and hasattr(db_user, 'experience'):
+            embed.add_field(
+                name="📊 Level & Experience",
+                value=f"**Level:** {current_level}\n"
+                      f"**XP:** {current_exp:,} ({exp_progress}/{exp_for_level})\n"
+                      f"{progress_bar}",
+                inline=False
+            )
 
         # Economy Stats
         net_worth = db_user.balance + db_user.bank_balance
@@ -65,17 +67,18 @@ class ProfileCog(commands.Cog, name="Profile"):
             inline=True
         )
 
-        # Activity Stats
-        embed.add_field(
-            name="📈 Activity",
-            value=f"**Commands Used:** {db_user.commands_used:,}\n"
-                  f"**Messages Sent:** {db_user.messages_sent:,}",
-            inline=True
-        )
+        # Activity Stats (if available)
+        if hasattr(db_user, 'commands_used') and hasattr(db_user, 'messages_sent'):
+            embed.add_field(
+                name="📈 Activity",
+                value=f"**Commands Used:** {db_user.commands_used:,}\n"
+                      f"**Messages Sent:** {db_user.messages_sent:,}",
+                inline=True
+            )
 
-        # Badges
-        if db_user.badges:
-            badge_str = " ".join(db_user.badges)
+        # Badges (if available)
+        if hasattr(db_user, 'badges') and db_user.badges:
+            badge_str = " ".join(db_user.badges) if isinstance(db_user.badges, list) else str(db_user.badges)
             embed.add_field(
                 name="🏆 Badges",
                 value=badge_str or "No badges yet",
