@@ -5,21 +5,26 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+
 from utils.logger import get_logger
+
 
 
 class BankCog(commands.Cog, name="Bank"):
     """Banking system for secure money storage"""
 
+
     def __init__(self, bot):
         self.bot = bot
         self.logger = get_logger(__name__)
+
 
     @app_commands.command(name="deposit", description="Deposit money into your bank")
     @app_commands.describe(amount="Amount to deposit (or 'all' for everything)")
     async def deposit(self, interaction: discord.Interaction, amount: str):
         """Deposit money from wallet to bank"""
-        user = await self.bot.db.get_user(interaction.user.id)
+        user = await self.bot.db.get_user(interaction.user.id, interaction.user.name, interaction.user.discriminator)
+
 
         # Handle "all" keyword
         if amount.lower() == "all":
@@ -34,6 +39,7 @@ class BankCog(commands.Cog, name="Bank"):
                 )
                 return
 
+
         if deposit_amount <= 0:
             await interaction.response.send_message(
                 "❌ Amount must be positive!",
@@ -41,12 +47,14 @@ class BankCog(commands.Cog, name="Bank"):
             )
             return
 
+
         if deposit_amount > user.balance:
             await interaction.response.send_message(
                 f"❌ You only have ${user.balance:,} in your wallet!",
                 ephemeral=True
             )
             return
+
 
         # Process deposit
         await self.bot.db.update_user_balance(interaction.user.id, -deposit_amount)
@@ -62,12 +70,15 @@ class BankCog(commands.Cog, name="Bank"):
             )
             await session.commit()
 
+
         await self.bot.db.log_transaction(
             interaction.user.id,
             interaction.guild.id if interaction.guild else 0,
             'bank_deposit',
-            deposit_amount
+            deposit_amount,
+            'Bank deposit'
         )
+
 
         embed = discord.Embed(
             title="🏦 Deposit Successful",
@@ -76,17 +87,20 @@ class BankCog(commands.Cog, name="Bank"):
         )
         
         # Fetch updated balance
-        updated_user = await self.bot.db.get_user(interaction.user.id)
+        updated_user = await self.bot.db.get_user(interaction.user.id, interaction.user.name, interaction.user.discriminator)
         embed.add_field(name="💵 Wallet", value=f"${updated_user.balance:,}", inline=True)
         embed.add_field(name="🏦 Bank", value=f"${updated_user.bank_balance:,}", inline=True)
 
+
         await interaction.response.send_message(embed=embed)
+
 
     @app_commands.command(name="withdraw", description="Withdraw money from your bank")
     @app_commands.describe(amount="Amount to withdraw (or 'all' for everything)")
     async def withdraw(self, interaction: discord.Interaction, amount: str):
         """Withdraw money from bank to wallet"""
-        user = await self.bot.db.get_user(interaction.user.id)
+        user = await self.bot.db.get_user(interaction.user.id, interaction.user.name, interaction.user.discriminator)
+
 
         # Handle "all" keyword
         if amount.lower() == "all":
@@ -101,6 +115,7 @@ class BankCog(commands.Cog, name="Bank"):
                 )
                 return
 
+
         if withdraw_amount <= 0:
             await interaction.response.send_message(
                 "❌ Amount must be positive!",
@@ -108,12 +123,14 @@ class BankCog(commands.Cog, name="Bank"):
             )
             return
 
+
         if withdraw_amount > user.bank_balance:
             await interaction.response.send_message(
                 f"❌ You only have ${user.bank_balance:,} in your bank!",
                 ephemeral=True
             )
             return
+
 
         # Process withdrawal
         await self.bot.db.update_user_balance(interaction.user.id, withdraw_amount)
@@ -129,12 +146,15 @@ class BankCog(commands.Cog, name="Bank"):
             )
             await session.commit()
 
+
         await self.bot.db.log_transaction(
             interaction.user.id,
             interaction.guild.id if interaction.guild else 0,
             'bank_withdraw',
-            withdraw_amount
+            withdraw_amount,
+            'Bank withdrawal'
         )
+
 
         embed = discord.Embed(
             title="🏦 Withdrawal Successful",
@@ -143,11 +163,13 @@ class BankCog(commands.Cog, name="Bank"):
         )
         
         # Fetch updated balance
-        updated_user = await self.bot.db.get_user(interaction.user.id)
+        updated_user = await self.bot.db.get_user(interaction.user.id, interaction.user.name, interaction.user.discriminator)
         embed.add_field(name="💵 Wallet", value=f"${updated_user.balance:,}", inline=True)
         embed.add_field(name="🏦 Bank", value=f"${updated_user.bank_balance:,}", inline=True)
 
+
         await interaction.response.send_message(embed=embed)
+
 
     @app_commands.command(name="bankinfo", description="View bank information and interest rates")
     async def bankinfo(self, interaction: discord.Interaction):
@@ -177,6 +199,7 @@ class BankCog(commands.Cog, name="Bank"):
             inline=False
         )
 
+
         user = await self.bot.db.get_user(
             interaction.user.id,
             interaction.user.name,
@@ -191,7 +214,9 @@ class BankCog(commands.Cog, name="Bank"):
                 inline=False
             )
 
+
         await interaction.response.send_message(embed=embed)
+
 
 
 async def setup(bot):

@@ -4,19 +4,24 @@ Casino Commands - Gambling games
 import random
 from typing import Optional
 
+
 import discord
 from discord import app_commands
 from discord.ext import commands
 
+
 from utils.logger import get_logger
+
 
 
 class CasinoCog(commands.Cog, name="Casino"):
     """Casino and gambling commands"""
 
+
     def __init__(self, bot):
         self.bot = bot
         self.logger = get_logger(__name__)
+
 
     async def _check_bet(self, interaction: discord.Interaction, amount: int) -> Optional[bool]:
         """Validate bet amount and user balance"""
@@ -24,7 +29,8 @@ class CasinoCog(commands.Cog, name="Casino"):
             await interaction.response.send_message("❌ Bet must be positive!", ephemeral=True)
             return False
 
-        user = await self.bot.db.get_user(interaction.user.id)
+
+        user = await self.bot.db.get_user(interaction.user.id, interaction.user.name, interaction.user.discriminator)
         if user.balance < amount:
             await interaction.response.send_message(
                 f"❌ Insufficient funds! You have ${user.balance:,}",
@@ -32,7 +38,9 @@ class CasinoCog(commands.Cog, name="Casino"):
             )
             return False
 
+
         return True
+
 
     @app_commands.command(name="coinflip", description="Flip a coin - double or nothing!")
     @app_commands.describe(
@@ -48,9 +56,11 @@ class CasinoCog(commands.Cog, name="Casino"):
         if not await self._check_bet(interaction, bet):
             return
 
+
         # Flip the coin
         result = random.choice(["heads", "tails"])
         won = result == choice
+
 
         if won:
             winnings = bet
@@ -70,6 +80,7 @@ class CasinoCog(commands.Cog, name="Casino"):
                 color=discord.Color.red()
             )
 
+
         await self.bot.db.log_transaction(
             interaction.user.id,
             interaction.guild.id if interaction.guild else 0,
@@ -78,7 +89,9 @@ class CasinoCog(commands.Cog, name="Casino"):
             f'Coinflip: {choice} vs {result}'
         )
 
+
         await interaction.response.send_message(embed=embed)
+
 
     @app_commands.command(name="slots", description="Play the slot machine!")
     @app_commands.describe(bet="Amount to bet")
@@ -86,6 +99,7 @@ class CasinoCog(commands.Cog, name="Casino"):
         """Slot machine game"""
         if not await self._check_bet(interaction, bet):
             return
+
 
         # Slot symbols with weights
         symbols = ["🍒", "🍋", "🍊", "🍇", "💎", "7️⃣"]
@@ -114,6 +128,7 @@ class CasinoCog(commands.Cog, name="Casino"):
             multiplier = 2
             result_msg = "✨ **TWO OF A KIND!** ✨"
 
+
         # Calculate winnings
         if multiplier > 0:
             winnings = bet * multiplier
@@ -134,6 +149,7 @@ class CasinoCog(commands.Cog, name="Casino"):
                 color=discord.Color.red()
             )
 
+
         await self.bot.db.log_transaction(
             interaction.user.id,
             interaction.guild.id if interaction.guild else 0,
@@ -142,7 +158,9 @@ class CasinoCog(commands.Cog, name="Casino"):
             f'Slots: {" ".join(reels)}'
         )
 
+
         await interaction.response.send_message(embed=embed)
+
 
     @app_commands.command(name="blackjack", description="Play blackjack against the dealer")
     @app_commands.describe(bet="Amount to bet")
@@ -150,6 +168,7 @@ class CasinoCog(commands.Cog, name="Casino"):
         """Blackjack game"""
         if not await self._check_bet(interaction, bet):
             return
+
 
         # Card values
         cards = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
@@ -169,6 +188,7 @@ class CasinoCog(commands.Cog, name="Casino"):
                 aces -= 1
             return value
 
+
         # Deal initial hands
         player_hand = [random.choice(cards), random.choice(cards)]
         dealer_hand = [random.choice(cards), random.choice(cards)]
@@ -186,13 +206,24 @@ class CasinoCog(commands.Cog, name="Casino"):
                 description=f"**Your hand:** {' '.join(player_hand)} (21)\n**Dealer:** {dealer_hand[0]} ?\n\n🎉 **BLACKJACK!** You won **${winnings:,}**!",
                 color=discord.Color.gold()
             )
+            
+            await self.bot.db.log_transaction(
+                interaction.user.id,
+                interaction.guild.id if interaction.guild else 0,
+                'blackjack_win',
+                winnings,
+                'Blackjack natural 21'
+            )
+            
             await interaction.response.send_message(embed=embed)
             return
+
 
         # Simple AI: dealer hits until 17
         while dealer_value < 17:
             dealer_hand.append(random.choice(cards))
             dealer_value = hand_value(dealer_hand)
+
 
         # Determine winner
         won = False
@@ -215,12 +246,14 @@ class CasinoCog(commands.Cog, name="Casino"):
         else:
             result_msg = "😔 Dealer wins!"
 
+
         if won:
             await self.bot.db.update_user_balance(interaction.user.id, bet)
             color = discord.Color.green()
         else:
             await self.bot.db.update_user_balance(interaction.user.id, -bet)
             color = discord.Color.red()
+
 
         embed = discord.Embed(
             title="🃏 Blackjack",
@@ -230,14 +263,18 @@ class CasinoCog(commands.Cog, name="Casino"):
             color=color
         )
 
+
         await self.bot.db.log_transaction(
             interaction.user.id,
             interaction.guild.id if interaction.guild else 0,
             'blackjack_win' if won else 'blackjack_loss',
-            bet if won else -bet
+            bet if won else -bet,
+            f'Blackjack: Player {player_value} vs Dealer {dealer_value}'
         )
 
+
         await interaction.response.send_message(embed=embed)
+
 
     @app_commands.command(name="dice", description="Roll dice and bet on the outcome")
     @app_commands.describe(
@@ -254,10 +291,12 @@ class CasinoCog(commands.Cog, name="Casino"):
         if not await self._check_bet(interaction, bet):
             return
 
+
         # Roll two dice
         die1 = random.randint(1, 6)
         die2 = random.randint(1, 6)
         total = die1 + die2
+
 
         # Determine range
         actual_range = "low" if total <= 6 else "medium" if total <= 8 else "high"
@@ -292,14 +331,18 @@ class CasinoCog(commands.Cog, name="Casino"):
                 color=discord.Color.red()
             )
 
+
         await self.bot.db.log_transaction(
             interaction.user.id,
             interaction.guild.id if interaction.guild else 0,
             'dice_win' if won else 'dice_loss',
-            (bet * multipliers[prediction] - bet) if won else -bet
+            (bet * multipliers[prediction] - bet) if won else -bet,
+            f'Dice: {die1}+{die2}={total}, predicted {prediction}, actual {actual_range}'
         )
 
+
         await interaction.response.send_message(embed=embed)
+
 
 
 async def setup(bot):
