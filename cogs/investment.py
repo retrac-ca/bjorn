@@ -54,7 +54,11 @@ class InvestmentCog(commands.Cog, name="Investment"):
             )
             return
 
-        user = await self.bot.db.get_user(interaction.user.id)
+        user = await self.bot.db.get_user(
+            interaction.user.id,
+            interaction.user.name,
+            interaction.user.discriminator
+        )
         if user.balance < amount:
             await interaction.response.send_message(
                 f"❌ Insufficient funds! You have ${user.balance:,}",
@@ -89,13 +93,18 @@ class InvestmentCog(commands.Cog, name="Investment"):
             'multiplier': multiplier
         }
 
-        await self.bot.db.log_transaction(
-            interaction.user.id,
-            interaction.guild.id if interaction.guild else 0,
-            'investment_start',
-            -amount,
-            f'{duration}h investment'
-        )
+        # Log transaction if available
+        if hasattr(self.bot.db, 'log_transaction'):
+            try:
+                await self.bot.db.log_transaction(
+                    interaction.user.id,
+                    interaction.guild.id if interaction.guild else 0,
+                    'investment_start',
+                    -amount,
+                    f'{duration}h investment'
+                )
+            except Exception as e:
+                self.logger.error(f"Failed to log transaction: {e}")
 
         embed = discord.Embed(
             title="📈 Investment Started",
@@ -154,13 +163,18 @@ class InvestmentCog(commands.Cog, name="Investment"):
                 color=discord.Color.red()
             )
 
-            await self.bot.db.log_transaction(
-                interaction.user.id,
-                interaction.guild.id if interaction.guild else 0,
-                'investment_fail',
-                0,
-                'Investment failed'
-            )
+            # Log transaction if available
+            if hasattr(self.bot.db, 'log_transaction'):
+                try:
+                    await self.bot.db.log_transaction(
+                        interaction.user.id,
+                        interaction.guild.id if interaction.guild else 0,
+                        'investment_fail',
+                        0,
+                        'Investment failed'
+                    )
+                except Exception as e:
+                    self.logger.error(f"Failed to log transaction: {e}")
         else:
             # Successful investment
             returns = int(investment['amount'] * investment['multiplier'])
@@ -178,13 +192,18 @@ class InvestmentCog(commands.Cog, name="Investment"):
             embed.add_field(name="Returns", value=f"${returns:,}", inline=True)
             embed.add_field(name="Profit", value=f"${profit:,}", inline=True)
 
-            await self.bot.db.log_transaction(
-                interaction.user.id,
-                interaction.guild.id if interaction.guild else 0,
-                'investment_success',
-                profit,
-                f'Investment return: {investment["multiplier"]:.2f}x'
-            )
+            # Log transaction if available
+            if hasattr(self.bot.db, 'log_transaction'):
+                try:
+                    await self.bot.db.log_transaction(
+                        interaction.user.id,
+                        interaction.guild.id if interaction.guild else 0,
+                        'investment_success',
+                        profit,
+                        f'Investment return: {investment["multiplier"]:.2f}x'
+                    )
+                except Exception as e:
+                    self.logger.error(f"Failed to log transaction: {e}")
 
         await interaction.response.send_message(embed=embed)
 

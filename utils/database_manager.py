@@ -1,35 +1,25 @@
 """
 Database Manager
 
-
-
 This module provides database connectivity and operations for the Bjorn bot.
 It handles database initialization, connection management, and provides high-level
 data access methods for all bot features including store, marketplace, investments,
 daily interest, and cooldown tracking.
 """
 
-
-
 import asyncio
 from datetime import datetime, timezone
 from typing import List, Optional
 
-
-
-from sqlalchemy import select, delete, func
+from sqlalchemy import select, delete, func, and_
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.exc import IntegrityError
-
-
 
 from config.database import (
     Base, User, Guild, Warning, Item, Inventory, Referral, Transaction,
     Investment, StoreItem, MarketListing, CentralBank
 )
 from utils.logger import get_logger, log_database_operation
-
-
 
 
 class DatabaseManager:
@@ -43,8 +33,6 @@ class DatabaseManager:
         self.session_factory = None
         self.logger = get_logger(__name__)
 
-
-
     async def initialize(self):
         self.logger.info("Initializing database connection...")
         self.engine = create_async_engine(self.async_url, echo=False, future=True)
@@ -53,8 +41,6 @@ class DatabaseManager:
             await conn.run_sync(Base.metadata.create_all)
         self.logger.info("Database initialized successfully")
         await self._setup_initial_data()
-
-
 
     async def _setup_initial_data(self):
         async with self.session_factory() as session:
@@ -69,14 +55,10 @@ class DatabaseManager:
                 session.add_all(defaults)
                 await session.commit()
 
-
-
     async def close(self):
         if self.engine:
             await self.engine.dispose()
             self.logger.info("Database connection closed")
-
-
 
     # User methods
     @log_database_operation("SELECT")
@@ -90,8 +72,6 @@ class DatabaseManager:
                 await session.refresh(user)
             return user
 
-
-
     @log_database_operation("UPDATE")
     async def update_user_balance(self, user_id: int, amount: int) -> bool:
         async with self.session_factory() as session:
@@ -99,10 +79,12 @@ class DatabaseManager:
             if not user or user.balance + amount < 0:
                 return False
             user.balance += amount
+            if amount > 0:
+                user.total_earned += amount
+            else:
+                user.total_spent += abs(amount)
             await session.commit()
             return True
-
-
 
     @log_database_operation("UPDATE")
     async def update_bank_balance(self, user_id: int, amount: int) -> bool:
@@ -114,8 +96,6 @@ class DatabaseManager:
             await session.commit()
             return True
 
-
-
     # Cooldown tracking for daily/earn/weekly
     @log_database_operation("SELECT")
     async def can_use_daily(self, user_id: int) -> bool:
@@ -125,8 +105,6 @@ class DatabaseManager:
                 return True
             elapsed = datetime.now(timezone.utc) - user.last_daily
             return elapsed.total_seconds() >= 24 * 3600
-
-
 
     @log_database_operation("UPDATE")
     async def use_daily(self, user_id: int) -> bool:
@@ -138,8 +116,6 @@ class DatabaseManager:
             await session.commit()
             return True
 
-
-
     @log_database_operation("SELECT")
     async def can_earn(self, user_id: int) -> bool:
         async with self.session_factory() as session:
@@ -148,8 +124,6 @@ class DatabaseManager:
                 return True
             elapsed = datetime.now(timezone.utc) - user.last_earn
             return elapsed.total_seconds() >= 300  # 5 minutes
-
-
 
     @log_database_operation("UPDATE")
     async def use_earn(self, user_id: int) -> bool:
@@ -161,15 +135,11 @@ class DatabaseManager:
             await session.commit()
             return True
 
-
-
     # Inventory methods
     @log_database_operation("SELECT")
     async def get_inventory_item(self, user_id: int, item_id: int) -> Optional[Inventory]:
         async with self.session_factory() as session:
             return await session.get(Inventory, {"user_id": user_id, "item_id": item_id})
-
-
 
     @log_database_operation("INSERT")
     async def add_inventory(self, user_id: int, item_id: int, quantity: int) -> None:
@@ -181,8 +151,6 @@ class DatabaseManager:
                 inv = Inventory(user_id=user_id, item_id=item_id, quantity=quantity)
                 session.add(inv)
             await session.commit()
-
-
 
     @log_database_operation("UPDATE")
     async def update_inventory(self, user_id: int, item_id: int, delta: int) -> bool:
@@ -196,16 +164,12 @@ class DatabaseManager:
             await session.commit()
             return True
 
-
-
     # Store methods
     @log_database_operation("SELECT")
     async def list_store_items(self, guild_id: int) -> List[StoreItem]:
         async with self.session_factory() as session:
             result = await session.execute(select(StoreItem).where(StoreItem.guild_id == guild_id))
             return result.scalars().all()
-
-
 
     @log_database_operation("INSERT")
     async def add_store_item(self, guild_id: int, name: str, price: int, emoji: str) -> bool:
@@ -219,8 +183,6 @@ class DatabaseManager:
                 await session.rollback()
                 return False
 
-
-
     @log_database_operation("DELETE")
     async def remove_store_item(self, guild_id: int, name: str) -> bool:
         async with self.session_factory() as session:
@@ -231,8 +193,6 @@ class DatabaseManager:
             res = await session.execute(stmt)
             await session.commit()
             return res.rowcount > 0
-
-
 
     # Marketplace methods
     @log_database_operation("INSERT")
@@ -251,15 +211,11 @@ class DatabaseManager:
             await session.refresh(listing)
             return listing.id
 
-
-
     @log_database_operation("SELECT")
     async def list_market_listings(self, guild_id: int) -> List[MarketListing]:
         async with self.session_factory() as session:
             result = await session.execute(select(MarketListing).where(MarketListing.guild_id == guild_id))
             return result.scalars().all()
-
-
 
     @log_database_operation("UPDATE")
     async def update_market_listing(self, listing_id: int, quantity_delta: int) -> bool:
@@ -273,8 +229,6 @@ class DatabaseManager:
             await session.commit()
             return True
 
-
-
     @log_database_operation("DELETE")
     async def remove_market_listing(self, listing_id: int) -> bool:
         async with self.session_factory() as session:
@@ -284,8 +238,6 @@ class DatabaseManager:
             await session.delete(listing)
             await session.commit()
             return True
-
-
 
     # Central bank methods
     @log_database_operation("UPDATE")
@@ -299,8 +251,6 @@ class DatabaseManager:
                 cb.total_funds += amount
             await session.commit()
 
-
-
     @log_database_operation("SELECT")
     async def get_central_bank(self) -> CentralBank:
         async with self.session_factory() as session:
@@ -311,8 +261,6 @@ class DatabaseManager:
                 await session.commit()
             return cb
 
-
-
     # Daily interest
     @log_database_operation("UPDATE")
     async def apply_daily_interest(self, interest_rate: float) -> int:
@@ -320,8 +268,6 @@ class DatabaseManager:
             stmt = select(User).where(User.bank_balance > 0)
             result = await session.execute(stmt)
             users = result.scalars().all()
-
-
 
             count = 0
             for user in users:
@@ -339,22 +285,76 @@ class DatabaseManager:
                     )
                     session.add(transaction)
 
-
-
             await session.commit()
             return count
 
-
-
     @log_database_operation("INSERT")
-    async def log_transaction(self, user_id: int, guild_id: Optional[int], transaction_type: str, amount: int, description: str) -> None:
+    async def log_transaction(self, user_id: int, guild_id: Optional[int], transaction_type: str, amount: int, description: str = None, related_user_id: int = None) -> None:
         async with self.session_factory() as session:
             transaction = Transaction(
                 user_id=user_id,
                 guild_id=guild_id,
                 transaction_type=transaction_type,
                 amount=amount,
-                description=description
+                description=description,
+                related_user_id=related_user_id
             )
             session.add(transaction)
             await session.commit()
+
+    # Warning/Moderation methods
+    @log_database_operation("INSERT")
+    async def add_warning(self, user_id: int, guild_id: int, moderator_id: int, reason: str) -> int:
+        """Add a warning to a user"""
+        async with self.session_factory() as session:
+            warning = Warning(
+                user_id=user_id,
+                guild_id=guild_id,
+                moderator_id=moderator_id,
+                reason=reason,
+                active=True
+            )
+            session.add(warning)
+            await session.commit()
+            await session.refresh(warning)
+            return warning.id
+
+    @log_database_operation("SELECT")
+    async def get_user_warnings(self, user_id: int, guild_id: int, active_only: bool = True) -> List[Warning]:
+        """Get user's warnings in a guild"""
+        async with self.session_factory() as session:
+            stmt = select(Warning).where(
+                and_(Warning.user_id == user_id, Warning.guild_id == guild_id)
+            )
+            if active_only:
+                stmt = stmt.where(Warning.active == True)
+            
+            result = await session.execute(stmt)
+            return result.scalars().all()
+
+    @log_database_operation("UPDATE")
+    async def clear_warning(self, warning_id: int) -> bool:
+        """Deactivate a warning"""
+        async with self.session_factory() as session:
+            warning = await session.get(Warning, warning_id)
+            if not warning:
+                return False
+            warning.active = False
+            await session.commit()
+            return True
+
+    # Guild methods
+    @log_database_operation("SELECT")
+    async def get_guild(self, guild_id: int, name: str = None) -> Guild:
+        """Get guild from database, creating if not exists"""
+        async with self.session_factory() as session:
+            guild = await session.get(Guild, guild_id)
+            if not guild:
+                guild = Guild(
+                    id=guild_id,
+                    name=name or f"Guild{guild_id}"
+                )
+                session.add(guild)
+                await session.commit()
+                await session.refresh(guild)
+            return guild
