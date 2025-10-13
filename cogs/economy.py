@@ -5,16 +5,24 @@ import random
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
+
+
 import discord
 from discord import app_commands
 from discord.ext import commands
+
+
 
 from utils.logger import get_logger
 from utils.decorators import ensure_user_exists
 
 
+
+
 class EconomyCog(commands.Cog, name="Economy"):
     """Economy system commands"""
+
+
 
     def __init__(self, bot):
         self.bot = bot
@@ -23,6 +31,8 @@ class EconomyCog(commands.Cog, name="Economy"):
         self.daily_cooldowns = {}
         self.crime_cooldowns = {}
 
+
+
     def _check_cooldown(self, user_id: int, cooldown_dict: dict, cooldown_seconds: int) -> Optional[int]:
         """Check if user is on cooldown, return seconds remaining or None"""
         if user_id in cooldown_dict:
@@ -30,6 +40,8 @@ class EconomyCog(commands.Cog, name="Economy"):
             if elapsed < cooldown_seconds:
                 return int(cooldown_seconds - elapsed)
         return None
+
+
 
     @app_commands.command(name="balance", description="Check your balance")
     @app_commands.describe(user="User to check (optional)")
@@ -58,6 +70,8 @@ class EconomyCog(commands.Cog, name="Economy"):
         
         await interaction.response.send_message(embed=embed)
 
+
+
     @app_commands.command(name="work", description="Work to earn money")
     async def work(self, interaction: discord.Interaction):
         """Earn money by working (5 minute cooldown)"""
@@ -72,6 +86,8 @@ class EconomyCog(commands.Cog, name="Economy"):
             )
             return
 
+
+
         # Generate earnings
         amount = random.randint(self.bot.config.earn_min, self.bot.config.earn_max)
         
@@ -84,10 +100,13 @@ class EconomyCog(commands.Cog, name="Economy"):
                 user_id, 
                 interaction.guild.id if interaction.guild else 0,
                 'work',
-                amount
+                amount,
+                'Work earnings'
             )
         
         self.work_cooldowns[user_id] = datetime.now()
+
+
 
         # Random work messages
         jobs = [
@@ -110,6 +129,8 @@ class EconomyCog(commands.Cog, name="Economy"):
         
         await interaction.response.send_message(embed=embed)
 
+
+
     @app_commands.command(name="daily", description="Claim your daily bonus")
     async def daily(self, interaction: discord.Interaction):
         """Claim daily bonus (24 hour cooldown)"""
@@ -119,7 +140,7 @@ class EconomyCog(commands.Cog, name="Economy"):
         can_claim = await self.bot.db.can_use_daily(user_id)
         
         if not can_claim:
-            user = await self.bot.db.get_user(user_id)
+            user = await self.bot.db.get_user(user_id, interaction.user.name, interaction.user.discriminator)
             if user.last_daily:
                 next_claim = user.last_daily + timedelta(days=1)
                 remaining = next_claim - datetime.now(timezone.utc)
@@ -131,6 +152,8 @@ class EconomyCog(commands.Cog, name="Economy"):
                     ephemeral=True
                 )
                 return
+
+
 
         # Generate bonus with streak multiplier
         base_amount = random.randint(
@@ -152,6 +175,8 @@ class EconomyCog(commands.Cog, name="Economy"):
             'Daily bonus claim'
         )
 
+
+
         embed = discord.Embed(
             title="🎁 Daily Bonus Claimed!",
             description=f"You received **${amount}**!",
@@ -160,6 +185,8 @@ class EconomyCog(commands.Cog, name="Economy"):
         embed.set_footer(text="Come back tomorrow for another bonus!")
         
         await interaction.response.send_message(embed=embed)
+
+
 
     @app_commands.command(name="crime", description="Commit a crime (risky!)")
     async def crime(self, interaction: discord.Interaction):
@@ -175,7 +202,11 @@ class EconomyCog(commands.Cog, name="Economy"):
             )
             return
 
+
+
         self.crime_cooldowns[user_id] = datetime.now()
+
+
 
         # Determine success
         success = random.random() < self.bot.config.crime_success_rate
@@ -191,7 +222,8 @@ class EconomyCog(commands.Cog, name="Economy"):
                 user_id,
                 interaction.guild.id if interaction.guild else 0,
                 'crime_success',
-                amount
+                amount,
+                'Successful crime earnings'
             )
             
             crimes = [
@@ -215,7 +247,7 @@ class EconomyCog(commands.Cog, name="Economy"):
                 self.bot.config.crime_fine_max
             )
             
-            user = await self.bot.db.get_user(user_id)
+            user = await self.bot.db.get_user(user_id, interaction.user.name, interaction.user.discriminator)
             actual_fine = min(fine, user.balance)  # Can't take more than they have
             
             await self.bot.db.update_user_balance(user_id, -actual_fine)
@@ -223,7 +255,8 @@ class EconomyCog(commands.Cog, name="Economy"):
                 user_id,
                 interaction.guild.id if interaction.guild else 0,
                 'crime_fail',
-                -actual_fine
+                -actual_fine,
+                'Crime failure fine'
             )
             
             fails = [
@@ -241,8 +274,12 @@ class EconomyCog(commands.Cog, name="Economy"):
                 color=discord.Color.red()
             )
 
+
+
         embed.set_footer(text="Try again in 10 minutes!")
         await interaction.response.send_message(embed=embed)
+
+
 
     @app_commands.command(name="give", description="Give money to another user")
     @app_commands.describe(
@@ -263,14 +300,18 @@ class EconomyCog(commands.Cog, name="Economy"):
             await interaction.response.send_message("❌ Amount must be positive!", ephemeral=True)
             return
 
+
+
         # Check sender has enough
-        sender = await self.bot.db.get_user(interaction.user.id)
+        sender = await self.bot.db.get_user(interaction.user.id, interaction.user.name, interaction.user.discriminator)
         if sender.balance < amount:
             await interaction.response.send_message(
                 f"❌ Insufficient funds! You only have ${sender.balance}",
                 ephemeral=True
             )
             return
+
+
 
         # Process transfer
         await self.bot.db.update_user_balance(interaction.user.id, -amount)
@@ -282,17 +323,17 @@ class EconomyCog(commands.Cog, name="Economy"):
             interaction.guild.id if interaction.guild else 0,
             'transfer_sent',
             -amount,
-            f'Sent to {user.id}',
-            user.id
+            f'Sent to {user.id}'
         )
         await self.bot.db.log_transaction(
             user.id,
             interaction.guild.id if interaction.guild else 0,
             'transfer_received',
             amount,
-            f'Received from {interaction.user.id}',
-            interaction.user.id
+            f'Received from {interaction.user.id}'
         )
+
+
 
         embed = discord.Embed(
             title="💸 Transfer Complete",
@@ -302,12 +343,16 @@ class EconomyCog(commands.Cog, name="Economy"):
         
         await interaction.response.send_message(embed=embed)
 
+
+
     @app_commands.command(name="leaderboard", description="View wealth rankings")
     @app_commands.describe(page="Page number (default: 1)")
     async def leaderboard(self, interaction: discord.Interaction, page: int = 1):
         """Display wealth leaderboard"""
         if page < 1:
             page = 1
+
+
 
         per_page = 10
         
@@ -322,9 +367,13 @@ class EconomyCog(commands.Cog, name="Economy"):
             )
             top_users = result.scalars().all()
 
+
+
         if not top_users:
             await interaction.response.send_message("No users found!", ephemeral=True)
             return
+
+
 
         # Calculate pagination
         total_pages = max(1, (len(top_users) + per_page - 1) // per_page)
@@ -333,11 +382,15 @@ class EconomyCog(commands.Cog, name="Economy"):
         offset = (page - 1) * per_page
         page_users = top_users[offset:offset + per_page]
 
+
+
         embed = discord.Embed(
             title="💰 Wealth Leaderboard",
             description=f"Top richest users (Page {page}/{total_pages})",
             color=discord.Color.gold()
         )
+
+
 
         for idx, user in enumerate(page_users, start=offset + 1):
             # Try to fetch Discord user
@@ -347,6 +400,8 @@ class EconomyCog(commands.Cog, name="Economy"):
             except:
                 name = user.username
 
+
+
             medal = ""
             if idx == 1:
                 medal = "🥇 "
@@ -355,6 +410,8 @@ class EconomyCog(commands.Cog, name="Economy"):
             elif idx == 3:
                 medal = "🥉 "
 
+
+
             net_worth = user.balance + user.bank_balance
             embed.add_field(
                 name=f"{medal}#{idx} {name}",
@@ -362,9 +419,13 @@ class EconomyCog(commands.Cog, name="Economy"):
                 inline=False
             )
 
+
+
         embed.set_footer(text=f"Page {page}/{total_pages}")
         
         await interaction.response.send_message(embed=embed)
+
+
 
 
 async def setup(bot):
