@@ -62,7 +62,7 @@ class DatabaseManager:
 
     # User methods
     @log_database_operation("SELECT")
-    async def get_user(self, user_id: int, username: str, discriminator: str) -> User:
+    async def get_user(self, user_id: int, username: str = "", discriminator: str = "") -> User:
         async with self.session_factory() as session:
             user = await session.get(User, user_id)
             if not user:
@@ -163,6 +163,47 @@ class DatabaseManager:
                 await session.delete(inv)
             await session.commit()
             return True
+
+    @log_database_operation("INSERT")
+    async def add_item_to_inventory(self, user_id: int, item_id: int, quantity: int = 1) -> bool:
+        """Add item to user's inventory"""
+        async with self.session_factory() as session:
+            # Check if user already has this item
+            existing = await session.get(Inventory, (user_id, item_id))
+            
+            if existing:
+                existing.quantity += quantity
+                existing.updated_at = datetime.now(timezone.utc)
+            else:
+                new_inventory = Inventory(
+                    user_id=user_id,
+                    item_id=item_id,
+                    quantity=quantity
+                )
+                session.add(new_inventory)
+            
+            await session.commit()
+            return True
+
+    @log_database_operation("SELECT")
+    async def get_user_inventory(self, user_id: int) -> List[dict]:
+        """Get user's inventory with item details"""
+        async with self.session_factory() as session:
+            stmt = select(Inventory, Item).join(Item).where(Inventory.user_id == user_id)
+            result = await session.execute(stmt)
+            
+            inventory = []
+            for inv, item in result:
+                inventory.append({
+                    'item_id': item.id,
+                    'name': item.name,
+                    'description': item.description,
+                    'quantity': inv.quantity,
+                    'emoji': item.emoji,
+                    'category': item.category
+                })
+            
+            return inventory
 
     # Store methods
     @log_database_operation("SELECT")
@@ -289,7 +330,7 @@ class DatabaseManager:
             return count
 
     @log_database_operation("INSERT")
-    async def log_transaction(self, user_id: int, guild_id: Optional[int], transaction_type: str, amount: int, description: str = None, related_user_id: int = None) -> None:
+    async def log_transaction(self, user_id: int, guild_id: Optional[int], transaction_type: str, amount: int, description: str = None, related_user_id: int = None, related_item_id: int = None) -> None:
         async with self.session_factory() as session:
             transaction = Transaction(
                 user_id=user_id,
@@ -328,7 +369,7 @@ class DatabaseManager:
             )
             if active_only:
                 stmt = stmt.where(Warning.active == True)
-            
+
             result = await session.execute(stmt)
             return result.scalars().all()
 

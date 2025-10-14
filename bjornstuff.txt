@@ -1,0 +1,66 @@
+* TNC Custom Subdomain - Interwebs
+>> Custom "yournamehere.thenotorietyclub.com" domain with hosting space to put up a website or web app. Must abide by TNC's vendor T.O.S. using this item, support will receive your request and action it accordingly.
+* Private Channel with Voice - Server Feature
+* Private Category with Channels + Voice - Server Feature
+* Robot Yellow Profile Name - Server Profile
+* Sour Green Profile Name - Server Profile
+* Cream White Profile Name - Server Profile
+* Orange Profile Name - Server Profile
+* Gold Profile Name - Server Profile
+* Lavender Profile Name - Server Profile
+* Bjorn Role Icon - Server Role
+* Soren Role Icon - Server Role
+* Custom Role Icon - Server Role
+* Millionaire Profile Badge - Bjorn Social Profile
+* Holiday Profile Themes - Bjorn Social Profile
+* Gold Bar - Items
+* Silver Bar - Items
+* Copper Bar - Items
+* Jeffrey Epstein's Unredacted "Black Book" - Literature
+* OG TNC - Server Themes
+* Ragin' Bull - Server Themes
+* Halloween  - Server Themes
+* Christmas - Server Themes 
+* Toadle Takeover - Server Themes
+
+
+**Current working commands (tested):**
+
+- [ ]  /balance
+- [ ]  /badges
+- [ ]  /bankinfo
+- [ ]  /botinfo
+- [ ]  /birthday
+- [ ]  /clear
+- [ ]  /coinflip
+- [ ]  /crime
+- [ ]  /daily
+- [ ]  /deposit
+- [ ]  /dice
+- [ ]  /help
+- [ ]  /invite
+- [ ]  /nextbirthday
+- [ ]  /leaderboard
+- [ ]  /referralboard
+- [ ]  /ping
+- [ ]  /serverinfo
+- [ ]  /profile
+- [ ]  /refer
+- [ ]  /remind
+- [ ]  /reminders
+- [ ]  /setbio
+- [ ]  /shop
+- [ ]  /slots
+- [ ]  /userinfo
+- [ ]  /blackjack
+- [ ]  /invest
+- [ ]  /warn
+- [ ]  /stats
+
+**Current Non Working Commands (failed):**
+
+/inventory - fails completely, the application did not respond
+
+/rank - fails completely, the application did not respond
+
+/setcolor - fails completely, the application did not respond

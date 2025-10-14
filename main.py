@@ -67,6 +67,7 @@ class BjornBot(commands.Bot):
             'cogs.investment',
             'cogs.casino',
             'cogs.store',
+            'cogs.marketplace',
             'cogs.profile',
             'cogs.referral',
             'cogs.moderation',
@@ -88,10 +89,23 @@ class BjornBot(commands.Bot):
             await self.setup_database()
             await self.load_cogs()
             
-            # Sync slash commands globally
-            self.logger.info("Syncing slash commands...")
+            # Sync slash commands globally (takes up to 1 hour to propagate)
+            self.logger.info("Syncing slash commands globally...")
             await self.tree.sync()
-            self.logger.info("✓ Commands synced")
+            self.logger.info("✓ Global commands synced")
+            
+            # Also sync to all guilds for instant updates
+            self.logger.info("Syncing commands to all guilds for instant access...")
+            synced_count = 0
+            for guild in self.guilds:
+                try:
+                    self.tree.copy_global_to(guild=guild)
+                    await self.tree.sync(guild=guild)
+                    synced_count += 1
+                except Exception as e:
+                    self.logger.error(f"Failed to sync to guild {guild.id}: {e}")
+            
+            self.logger.info(f"✓ Commands instantly synced to {synced_count} guild(s)")
             
         except Exception as e:
             self.logger.error(f"Setup failed: {e}")
@@ -117,9 +131,17 @@ class BjornBot(commands.Bot):
         )
 
     async def on_guild_join(self, guild):
-        """Bot joins a new server"""
+        """Bot joins a new server - sync commands instantly"""
         self.logger.info(f"Joined: {guild.name} (ID: {guild.id})")
         await self.db.get_guild(guild.id, guild.name)
+        
+        # Instantly sync commands to the new guild
+        try:
+            self.tree.copy_global_to(guild=guild)
+            await self.tree.sync(guild=guild)
+            self.logger.info(f"✓ Commands synced to {guild.name}")
+        except Exception as e:
+            self.logger.error(f"Failed to sync commands to new guild: {e}")
 
     async def on_command_error(self, ctx, error):
         """Handle command errors"""
